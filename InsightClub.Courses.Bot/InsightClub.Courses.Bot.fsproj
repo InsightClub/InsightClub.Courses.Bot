@@ -13,6 +13,7 @@
   <ItemGroup>
     <PackageReference Include="InsightClub.Funogram" Version="2.0.3" />
     <PackageReference Include="InsightClub.Funogram.Telegram" Version="4.4.3" />
+    <PackageReference Include="Legivel" Version="0.4.6" />
   </ItemGroup>
 
   <ItemGroup>
