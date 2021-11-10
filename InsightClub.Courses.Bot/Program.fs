@@ -1,4 +1,4 @@
-﻿module InsightClub.Courses.Bot.Program
+module InsightClub.Courses.Bot.Program
 
 
 [<EntryPoint>]
