@@ -72,7 +72,7 @@ type Database with
         Port = port } }
 
 type Config with
-  static member FromJson(_: Server) = json {
+  static member FromJson(_: Config) = json {
     let! token = Json.read "Token"
     let! server = Json.read "Server"
     let! database = Json.read "Database"
@@ -84,3 +84,7 @@ type Config with
       { Token = token
         Server = server
         Database = database } }
+
+// Functions
+module Config =
+  let parse :string -> Config = Json.parse >> Json.deserialize
