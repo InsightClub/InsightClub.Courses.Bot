@@ -1,8 +1,9 @@
 namespace InsightClub.Courses.Bot.Config
 
 open System
-open Chiron
+open System.IO
 open InsightClub.Courses.Bot
+open Chiron
 
 
 // Types
@@ -87,4 +88,5 @@ type Config with
 
 // Functions
 module Config =
-  let parse :string -> Config = Json.parse >> Json.deserialize
+  let load :string -> Config =
+    File.ReadAllText >> Json.parse >> Json.deserialize
