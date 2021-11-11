@@ -53,7 +53,7 @@ type Database with
       "«Host» field must contain correct http or https url"
     let host = Uri.createHttp id (Defer.func failwith hostError) host
 
-    let defaultPort = if host.Scheme = "http" then 80 else 443
+    let defaultPort = 5432 // Default postgres port
 
     let port = Option.defaultValue defaultPort port
 
