@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -10,6 +10,13 @@
     <Compile Include="Utility.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Config.json">
+      <CopyToOutputDirectory Condition="'$(Configuration)'=='DEBUG'">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition="'$(Configuration)'=='RELEASE'">PreserveNewest</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
