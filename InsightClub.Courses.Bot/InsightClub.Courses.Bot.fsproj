@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Compile Include="Utility.fs" />
+    <Compile Include="Core.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
