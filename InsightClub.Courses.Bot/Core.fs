@@ -5,14 +5,23 @@ module InsightClub.Courses.Bot.Core
 module Inactive =
   type Command = Start
 
+module Idle =
+  type Command = Help
+
+  type Msg =
+    | Started
+    | Helping
+    | Error
+
 type BotState =
   | Inactive
-  | Idle
+  | Idle of Idle.Msg
 
 type GetCommand<'Command> = unit -> 'Command option
 
 type BotCommands =
-  { getInactive: GetCommand<Inactive.Command> }
+  { getInactive: GetCommand<Inactive.Command>
+    getIdle: GetCommand<Idle.Command> }
 
 type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result }
@@ -23,14 +32,18 @@ let initial = Inactive
 
 let private updateInactive callback = function
 | Some Inactive.Start ->
-  callback Idle None
+  callback (Idle Idle.Started) None
 
 | None ->
   callback Inactive None
 
 // Stub
-let private updateIdle callback =
-  callback Idle None
+let private updateIdle callback = function
+| Some Idle.Help ->
+  callback (Idle Idle.Helping) None
+
+| None ->
+  callback (Idle Idle.Error) None
 
 let update services commands =
   let s = services
@@ -39,5 +52,6 @@ let update services commands =
     commands.getInactive ()
     |> updateInactive s.callback
 
-  | Idle ->
-    updateIdle s.callback
+  | Idle _ ->
+    commands.getIdle()
+    |> updateIdle s.callback
