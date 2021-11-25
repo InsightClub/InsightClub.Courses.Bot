@@ -13,3 +13,6 @@ module Uri =
     if ok && (uri.Scheme = Uri.UriSchemeHttp || uri.Scheme = Uri.UriSchemeHttps)
     then onOk uri
     else onError ()
+
+module Async =
+  let singleton n = async { return n }
