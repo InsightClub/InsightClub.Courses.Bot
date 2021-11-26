@@ -24,7 +24,7 @@ type Config =
     Server: Server
     Database: Database }
 
-// Functions
+// Values
 module Config =
-  let load :string -> Config =
-    File.ReadAllText >> Json.deserialize
+  let load =
+    File.ReadAllText >> Json.deserialize<Config>
