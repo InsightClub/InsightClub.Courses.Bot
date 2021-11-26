@@ -1,6 +1,14 @@
 namespace InsightClub.Courses.Bot
 
 
+[<AutoOpen>]
+module General =
+  // Wraps tuple result into an option
+  let tryParseWith (tryParseFunc: string -> bool * _) =
+    tryParseFunc >> function
+    | true, v  -> Some v
+    | false, _ -> None
+
 module Defer =
   let func f a _ = f a
 
