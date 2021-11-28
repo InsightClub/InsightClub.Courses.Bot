@@ -3,6 +3,8 @@ namespace InsightClub.Courses.Bot
 
 [<AutoOpen>]
 module General =
+  let always x _ = x
+
   // Wraps tuple result into an option
   let tryParseWith (tryParseFunc: string -> bool * _) =
     tryParseFunc >> function
