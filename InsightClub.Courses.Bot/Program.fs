@@ -19,7 +19,7 @@ let startBot
   let apiPath = $"api/{appConfig.Token}"
 
   let webhookUrl =
-    appConfig.Server.Address.ToString() + apiPath
+    appConfig.Server.Address + apiPath
 
   let validate (req: HttpListenerRequest) =
     req.Url.LocalPath = $"/{apiPath}"
@@ -40,7 +40,7 @@ let startBot
   let printStarted () =
     printfn
       "Bot started! Listening to %s"
-      (appConfig.Server.Listens.ToString())
+      appConfig.Server.Listens
 
   let setWebhook () =
     setWebhookBase webhookUrl None None None
@@ -67,10 +67,10 @@ let main _ =
   let config = Config.load "Config.json"
 
   use listener = new HttpListener()
-  listener.Prefixes.Add(config.Server.Listens.ToString())
+  listener.Prefixes.Add(config.Server.Listens)
 
   let getConnection () =
-    Sql.host (config.Database.Host.ToString())
+    Sql.host config.Database.Host
     |> Sql.database config.Database.Database
     |> Sql.username config.Database.Username
     |> Sql.password config.Database.Password

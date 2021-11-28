@@ -9,11 +9,11 @@ module Json = Compact.Strict
 
 // Types
 type Server =
-  { Address: Uri
-    Listens: Uri }
+  { Address: String
+    Listens: String }
 
 type Database =
-  { Host: Uri
+  { Host: String
     Database: String
     Username: String
     Password: String
