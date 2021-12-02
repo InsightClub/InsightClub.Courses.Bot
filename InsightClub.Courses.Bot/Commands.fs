@@ -8,8 +8,16 @@ open Funogram.Telegram
 type Message = Types.Message
 type CallbackQuery = Types.CallbackQuery
 
+type QueryEffect =
+  | InformMin
+  | InformMax
+
 let start = "/start"
 let help = "/help"
+let select = "/select"
+let prev = "/prev"
+let next = "/next"
+let exit = "/exit"
 
 let private (|Command|_|) command = function
 | { Message.Text = Some text }
@@ -57,7 +65,7 @@ let private (|ParamQ|_|) command = function
 
 | _ -> None
 
-let onMessage message : BotCommands =
+let onMessage message : BotCommands<unit> =
   let getInactive () =
     match message with
     | Command start -> Some Inactive.Start
@@ -65,8 +73,29 @@ let onMessage message : BotCommands =
 
   let getIdle () =
     match message with
-    | Command help -> Some Idle.Help
-    | _            -> None
+    | Command help   -> Some Idle.Help
+    | Command select -> Some <| Idle.Select 5
+    | _              -> None
+
+  let getListingCourses () = None
 
   { getInactive = getInactive
-    getIdle = getIdle }
+    getIdle = getIdle
+    getListingCourses = getListingCourses }
+
+let onQuery query =
+  let getInactive () = None
+
+  let getIdle () = None
+
+  let getListingCourses () =
+    match query with
+    | ParamQ select id -> Some <| ListingCourses.Select id
+    | CommandQ prev    -> Some <| ListingCourses.Prev QueryEffect.InformMin
+    | CommandQ next    -> Some <| ListingCourses.Next QueryEffect.InformMax
+    | CommandQ exit    -> Some ListingCourses.Exit
+    | _                -> None
+
+  { getInactive = getInactive
+    getIdle = getIdle
+    getListingCourses = getListingCourses }

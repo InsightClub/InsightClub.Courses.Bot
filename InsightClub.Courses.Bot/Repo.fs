@@ -41,3 +41,54 @@ let updateState connection customerId state =
   |> Sql.executeNonQueryAsync
   |> Async.AwaitTask
   |> Async.Ignore
+
+let checkAnyCourses connection customerId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT EXISTS(
+      SELECT 1
+      FROM customer_courses
+      WHERE customer_id = @customer_id
+    ) as any"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId ]
+  |> Sql.executeRowAsync (fun read -> read.bool "any")
+  |> Async.AwaitTask
+
+let getCoursesCount connection customerId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT COUNT(*) as count
+    FROM customer_courses
+    WHERE customer_id = @customer_id"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId ]
+  |> Sql.executeRowAsync (fun read -> read.int "count")
+  |> Async.AwaitTask
+
+let getCourses connection customerId page count =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT course_id, course_title
+    FROM courses
+    WHERE course_id
+    IN (
+      SELECT course_id
+      FROM customer_courses
+      WHERE customer_id = @customer_id
+    )
+    ORDER BY course_id
+    LIMIT @limit
+    OFFSET @offset"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "limit", Sql.int count
+      "offset", Sql.int (page * count) ]
+  |> Sql.executeAsync
+    ( fun read ->
+        read.int "course_id",
+        read.string "course_title" )
+  |> Async.AwaitTask

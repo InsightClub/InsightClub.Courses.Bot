@@ -38,7 +38,7 @@ let private idleMsg (user: User) = function
     в режиме ожидания. Все остальные режимы имеют вспомогательные \
     клавиатуры, которые помогут Вам легко разобраться в функционале.
 
-    {Commands.start} - Начать курс ⚡️
+    {Commands.select} - Начать курс ⚡️
     {Commands.help} - Получить помощь (Вы сейчас здесь) 👀
 
     Если Вы ещё не оплатили ни одного курса, Ваш список курсов будет пуст. \
@@ -50,9 +50,42 @@ let private idleMsg (user: User) = function
     В остальных режимах она не распознаётся, ибо их интерфейс поможет \
     Вам легко разобраться 🔥"
 
+| Idle.NoCourses ->
+  c$"У Вас пока нет доступных курсов {randomEmoji ()}
+    Для получения справки отправьте {Commands.help} 🤹‍♂️"
+
+| Idle.SelectCanceled ->
+  "Выбор курса отменён 👌"
+
 | Idle.Error ->
   c$"Неизвестная команда {randomEmoji ()}
     Отправьте {Commands.help} для получения помощи 👀"
+
+let private listingCoursesMsg page count courseCount msg =
+  let m s =
+    match msg with
+    | ListingCourses.Started ->
+      s
+
+    | ListingCourses.Error ->
+      c$"Неизвестная команда. {randomEmoji ()}
+
+        {s}"
+
+  let min = page * count + 1
+  let max = page * count + courseCount
+
+  if min = max
+  then $"Курс № {min}"
+  else $"Курсы с № {min} по № {max}"
+  |> m
+  |> c
+
+module private Button =
+  let cancel = "Отмена ❌"
+  let exit = "Выход 🚪"
+  let prev = "⬅️"
+  let next = "➡️"
 
 let private button text command : Button =
   { Text = text
@@ -64,10 +97,28 @@ let private button text command : Button =
     SwitchInlineQuery = None
     SwitchInlineQueryCurrentChat = None }
 
-let state user state = async {
+let state getCourses user state = async {
   match state with
   | Inactive ->
     return String.Empty, None
 
   | Idle msg ->
-    return idleMsg user msg, None }
+    return idleMsg user msg, None
+
+  | ListingCourses (page, count, msg) ->
+    let! courses = getCourses page count
+
+    return
+      listingCoursesMsg page count (List.length courses) msg,
+      Some
+        [ for (id, title) in courses do
+            yield [ button title $"{Commands.select} {id}" ]
+
+            yield [ button Button.prev Commands.prev
+                    button Button.next Commands.next ]
+
+            yield [ button Button.exit Commands.exit ] ]
+
+  // Stub
+  | StudyingCourse _ ->
+    return "", None }
