@@ -120,5 +120,9 @@ let state getCourses user state = async {
             yield [ button Button.exit Commands.exit ] ]
 
   // Stub
+  | ViewingCourse _ ->
+    return "", None
+
+  // Stub
   | StudyingCourse _ ->
     return "", None }

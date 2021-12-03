@@ -92,3 +92,17 @@ let getCourses connection customerId page count =
         read.int "course_id",
         read.string "course_title" )
   |> Async.AwaitTask
+
+let checkCourseStarted connection customerId courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT block_id IS NOT NULL as started
+    FROM customer_courses
+    WHERE customer_id = @customer_id
+    AND course_id = @course_id"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.bool "started")
+  |> Async.AwaitTask

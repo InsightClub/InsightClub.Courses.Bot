@@ -19,6 +19,13 @@ let get connection customerId =
 
     return! callback count }
 
+  let checkCourseStarted courseId callback = async {
+    let! started =
+      Repo.checkCourseStarted connection customerId courseId
+
+    return! callback started }
+
   { callback = callback
     checkAnyCourses = checkAnyCourses
-    getCoursesCount = getCoursesCount }
+    getCoursesCount = getCoursesCount
+    checkCourseStarted = checkCourseStarted }

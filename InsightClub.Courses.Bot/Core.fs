@@ -36,6 +36,7 @@ type BotState =
   | Inactive
   | Idle of Idle.Msg
   | ListingCourses of Page * Count * ListingCourses.Msg
+  | ViewingCourse of CourseId
   | StudyingCourse of CourseId
 
 type GetCommand<'Command> = unit -> 'Command option
@@ -51,7 +52,8 @@ type Service<'Result> = Service<unit, 'Result>
 type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result
     checkAnyCourses: Service<bool, 'Result>
-    getCoursesCount: Service<Count, 'Result> }
+    getCoursesCount: Service<Count, 'Result>
+    checkCourseStarted: CourseId -> Service<bool, 'Result> }
 
 // Values
 /// Initial state
@@ -82,9 +84,16 @@ let private updateIdle callback checkAnyCourses = function
 | None ->
   callback (Idle Idle.Error) None
 
-let private updateListingCourses callback getCoursesCount page count = function
+let private updateListingCourses
+  callback getCoursesCount checkCourseStarted page count = function
 | Some (ListingCourses.Select courseId) ->
-  callback (StudyingCourse courseId) None
+  checkCourseStarted courseId <|
+    function
+    | false ->
+      callback (ViewingCourse courseId) None
+
+    | true  ->
+      callback (StudyingCourse courseId) None
 
 | Some (ListingCourses.Prev informMin) ->
   let state, effect =
@@ -113,6 +122,10 @@ let private updateListingCourses callback getCoursesCount page count = function
   callback (ListingCourses (page, count, ListingCourses.Error)) None
 
 // Stub
+let private updateViewingCourse callback courseId =
+  callback (ViewingCourse courseId) None
+
+// Stub
 let private updateStudyingCourse callback courseId =
   callback (StudyingCourse courseId) None
 
@@ -129,7 +142,11 @@ let update services commands =
 
   | ListingCourses (page, count, _) ->
     commands.getListingCourses ()
-    |> updateListingCourses s.callback s.getCoursesCount page count
+    |> updateListingCourses
+      s.callback s.getCoursesCount s.checkCourseStarted page count
+
+  | ViewingCourse courseId ->
+    updateViewingCourse s.callback courseId
 
   | StudyingCourse courseId ->
     updateStudyingCourse s.callback courseId
