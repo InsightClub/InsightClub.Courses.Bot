@@ -76,7 +76,8 @@ let onUpdate getConnection ctx = async {
     let! state, _ = Core.update services commands state
 
     let getCourses = Repo.getCourses connection customerId
-    let! text, keyboard = Render.state getCourses user state
+    let getCourseData = Repo.getCourseData connection
+    let! text, keyboard = Render.state getCourses getCourseData user state
 
     match lastId with
     | Some messageId ->
@@ -104,7 +105,8 @@ let onUpdate getConnection ctx = async {
     let effectText, queryAnswer = renderQueryEffect effect
 
     let getCourses = Repo.getCourses connection customerId
-    let! text, keyboard = Render.state getCourses user state
+    let getCourseData = Repo.getCourseData connection
+    let! text, keyboard = Render.state getCourses getCourseData user state
 
     do! answerCallbackQuery config query.Id queryAnswer
 

@@ -25,7 +25,21 @@ let get connection customerId =
 
     return! callback started }
 
+  let getFirstBlockId courseId callback = async {
+    let! started =
+      Repo.getFirstBlockId connection courseId
+
+    return! callback started }
+
+  let setCurrentBlock courseId blockId callback = async {
+    do!
+      Repo.setCurrentBlock connection customerId courseId blockId
+
+    return! callback () }
+
   { callback = callback
     checkAnyCourses = checkAnyCourses
     getCoursesCount = getCoursesCount
-    checkCourseStarted = checkCourseStarted }
+    checkCourseStarted = checkCourseStarted
+    getFirstBlockId = getFirstBlockId
+    setCurrentBlock = setCurrentBlock }

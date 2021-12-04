@@ -81,11 +81,26 @@ let private listingCoursesMsg page count courseCount msg =
   |> m
   |> c
 
+let private viewingCourseMsg data = function
+| ViewingCourse.Started ->
+  data
+
+| ViewingCourse.CourseEmpty ->
+  c$"Курс не имеет ни одного блока, то есть пуст {randomEmoji ()}
+
+    {data}"
+
+| ViewingCourse.Error ->
+  c$"Неизвестная команда {randomEmoji ()}
+
+    {data}"
+
 module private Button =
   let cancel = "Отмена ❌"
   let exit = "Выход 🚪"
   let prev = "⬅️"
   let next = "➡️"
+  let start = "Начать ⚡️"
 
 let private button text command : Button =
   { Text = text
@@ -97,7 +112,7 @@ let private button text command : Button =
     SwitchInlineQuery = None
     SwitchInlineQueryCurrentChat = None }
 
-let state getCourses user state = async {
+let state getCourses getCourseData user state = async {
   match state with
   | Inactive ->
     return String.Empty, None
@@ -119,9 +134,18 @@ let state getCourses user state = async {
 
             yield [ button Button.exit Commands.exit ] ]
 
-  // Stub
-  | ViewingCourse _ ->
-    return "", None
+  | ViewingCourse (courseId, msg) ->
+    let! title, desc = getCourseData courseId
+    let data =
+      c$"{title}
+
+      {desc}"
+
+    return
+      viewingCourseMsg data msg,
+      Some
+        [ [ button Button.start Commands.start ]
+          [ button Button.exit Commands.exit ] ]
 
   // Stub
   | StudyingCourse _ ->

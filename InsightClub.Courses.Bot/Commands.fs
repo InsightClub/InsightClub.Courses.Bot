@@ -79,9 +79,12 @@ let onMessage message : BotCommands<unit> =
 
   let getListingCourses () = None
 
+  let getViewingCourse () = None
+
   { getInactive = getInactive
     getIdle = getIdle
-    getListingCourses = getListingCourses }
+    getListingCourses = getListingCourses
+    getViewingCourse = getViewingCourse }
 
 let onQuery query =
   let getInactive () = None
@@ -96,6 +99,13 @@ let onQuery query =
     | CommandQ exit    -> Some ListingCourses.Exit
     | _                -> None
 
+  let getViewingCourse () =
+    match query with
+    | CommandQ start -> Some ViewingCourse.Start
+    | CommandQ exit  -> Some ViewingCourse.Exit
+    | _              -> None
+
   { getInactive = getInactive
     getIdle = getIdle
-    getListingCourses = getListingCourses }
+    getListingCourses = getListingCourses
+    getViewingCourse = getViewingCourse }

@@ -3,6 +3,7 @@ module InsightClub.Courses.Bot.Core
 
 // Types
 type CourseId = int
+type BlockId = int
 type Page = int
 type Count = int
 
@@ -32,11 +33,21 @@ module ListingCourses =
     | Started
     | Error
 
+module ViewingCourse =
+  type Command =
+    | Exit
+    | Start
+
+  type Msg =
+    | Started
+    | CourseEmpty
+    | Error
+
 type BotState =
   | Inactive
   | Idle of Idle.Msg
   | ListingCourses of Page * Count * ListingCourses.Msg
-  | ViewingCourse of CourseId
+  | ViewingCourse of CourseId * ViewingCourse.Msg
   | StudyingCourse of CourseId
 
 type GetCommand<'Command> = unit -> 'Command option
@@ -44,7 +55,8 @@ type GetCommand<'Command> = unit -> 'Command option
 type BotCommands<'Effect> =
   { getInactive: GetCommand<Inactive.Command>
     getIdle: GetCommand<Idle.Command>
-    getListingCourses: GetCommand<ListingCourses.Command<'Effect>> }
+    getListingCourses: GetCommand<ListingCourses.Command<'Effect>>
+    getViewingCourse: GetCommand<ViewingCourse.Command> }
 
 type Service<'Param, 'Result> = ('Param -> 'Result) -> 'Result
 type Service<'Result> = Service<unit, 'Result>
@@ -53,7 +65,9 @@ type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result
     checkAnyCourses: Service<bool, 'Result>
     getCoursesCount: Service<Count, 'Result>
-    checkCourseStarted: CourseId -> Service<bool, 'Result> }
+    checkCourseStarted: CourseId -> Service<bool, 'Result>
+    getFirstBlockId: CourseId -> Service<BlockId option, 'Result>
+    setCurrentBlock: CourseId -> BlockId option -> Service<'Result> }
 
 // Values
 /// Initial state
@@ -73,13 +87,10 @@ let private updateIdle callback checkAnyCourses = function
 | Some (Idle.Select count) ->
   checkAnyCourses <|
     fun any ->
-      let state =
-        if any then
-          ListingCourses (0, count, ListingCourses.Started)
-        else
-          Idle Idle.NoCourses
-
-      callback state None
+      if any then
+        callback (ListingCourses (0, count, ListingCourses.Started)) None
+      else
+        callback (Idle Idle.NoCourses) None
 
 | None ->
   callback (Idle Idle.Error) None
@@ -88,12 +99,11 @@ let private updateListingCourses
   callback getCoursesCount checkCourseStarted page count = function
 | Some (ListingCourses.Select courseId) ->
   checkCourseStarted courseId <|
-    function
-    | false ->
-      callback (ViewingCourse courseId) None
-
-    | true  ->
-      callback (StudyingCourse courseId) None
+    fun started ->
+      if started then
+        callback (StudyingCourse courseId) None
+      else
+        callback (ViewingCourse (courseId, ViewingCourse.Started)) None
 
 | Some (ListingCourses.Prev informMin) ->
   let state, effect =
@@ -121,9 +131,23 @@ let private updateListingCourses
 | None ->
   callback (ListingCourses (page, count, ListingCourses.Error)) None
 
-// Stub
-let private updateViewingCourse callback courseId =
-  callback (ViewingCourse courseId) None
+let private updateViewingCourse
+  callback getFirstBlockId setCurrentBlock courseId = function
+| Some ViewingCourse.Exit ->
+  callback (Idle Idle.SelectCanceled) None
+
+| Some ViewingCourse.Start ->
+  getFirstBlockId courseId <|
+    function
+    | Some blockId ->
+      setCurrentBlock courseId (Some blockId) <|
+        fun () -> callback (StudyingCourse courseId) None
+
+    | None ->
+      callback (ViewingCourse (courseId, ViewingCourse.CourseEmpty)) None
+
+| None ->
+  callback (ViewingCourse (courseId, ViewingCourse.Error)) None
 
 // Stub
 let private updateStudyingCourse callback courseId =
@@ -145,8 +169,10 @@ let update services commands =
     |> updateListingCourses
       s.callback s.getCoursesCount s.checkCourseStarted page count
 
-  | ViewingCourse courseId ->
-    updateViewingCourse s.callback courseId
+  | ViewingCourse (courseId, _) ->
+    commands.getViewingCourse ()
+    |> updateViewingCourse
+      s.callback s.getFirstBlockId s.setCurrentBlock courseId
 
   | StudyingCourse courseId ->
     updateStudyingCourse s.callback courseId

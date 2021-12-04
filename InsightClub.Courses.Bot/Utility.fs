@@ -11,9 +11,6 @@ module General =
     | true, v  -> Some v
     | false, _ -> None
 
-module Defer =
-  let func f a _ = f a
-
 module Async =
   let singleton n = async { return n }
 

@@ -106,3 +106,54 @@ let checkCourseStarted connection customerId courseId =
       "course_id", Sql.int courseId ]
   |> Sql.executeRowAsync (fun read -> read.bool "started")
   |> Async.AwaitTask
+
+let getFirstBlockId connection courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT COALESCE((
+      SELECT block_id
+      FROM blocks
+      WHERE course_id = @course_id
+      AND block_index = (
+        SELECT MIN(block_index)
+        FROM blocks
+        WHERE course_id = @course_id
+      )),
+      NULL
+    ) as block_id"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.intOrNone "block_id")
+  |> Async.AwaitTask
+
+let setCurrentBlock connection customerId courseId blockId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "UPDATE customer_courses
+    SET block_id = @block_id
+    WHERE customer_id = @customer_id
+    AND course_id = @course_id"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId
+      "block_id", Sql.intOrNone blockId ]
+  |> Sql.executeNonQueryAsync
+  |> Async.AwaitTask
+  |> Async.Ignore
+
+let getCourseData connection courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT course_title, course_description
+    FROM courses
+    WHERE course_id = @course_id"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync
+    ( fun read ->
+        read.string "course_title",
+        read.string "course_description" )
+  |> Async.AwaitTask
