@@ -6,6 +6,17 @@ type CourseId = int
 type BlockId = int
 type Page = int
 type Count = int
+type Text = string
+type FileId = string
+
+type Content =
+  | Text of Text
+  | Photo of FileId
+  | Audio of FileId
+  | Video of FileId
+  | Voice of FileId
+  | Document of FileId
+  | VideoNote of FileId
 
 module Inactive =
   type Command = Start
@@ -20,6 +31,7 @@ module Idle =
     | Helping
     | NoCourses
     | SelectCanceled
+    | Exited
     | Error
 
 module ListingCourses =
@@ -35,12 +47,25 @@ module ListingCourses =
 
 module ViewingCourse =
   type Command =
-    | Exit
     | Start
+    | Exit
 
   type Msg =
     | Started
     | CourseEmpty
+    | Closed
+    | Error
+
+module StudyingCourse =
+  type Command<'Effect> =
+    | ShowInfo of (Content list -> 'Effect)
+    | Prev of 'Effect
+    | Next of 'Effect
+    | Close
+    | Exit
+
+  type Msg =
+    | Studying
     | Error
 
 type BotState =
@@ -48,7 +73,7 @@ type BotState =
   | Idle of Idle.Msg
   | ListingCourses of Page * Count * ListingCourses.Msg
   | ViewingCourse of CourseId * ViewingCourse.Msg
-  | StudyingCourse of CourseId
+  | StudyingCourse of CourseId * StudyingCourse.Msg
 
 type GetCommand<'Command> = unit -> 'Command option
 
@@ -56,7 +81,8 @@ type BotCommands<'Effect> =
   { getInactive: GetCommand<Inactive.Command>
     getIdle: GetCommand<Idle.Command>
     getListingCourses: GetCommand<ListingCourses.Command<'Effect>>
-    getViewingCourse: GetCommand<ViewingCourse.Command> }
+    getViewingCourse: GetCommand<ViewingCourse.Command>
+    getStudyingCourse: GetCommand<StudyingCourse.Command<'Effect>> }
 
 type Service<'Param, 'Result> = ('Param -> 'Result) -> 'Result
 type Service<'Result> = Service<unit, 'Result>
@@ -67,7 +93,10 @@ type BotServices<'Effect, 'Result> =
     getCoursesCount: Service<Count, 'Result>
     checkCourseStarted: CourseId -> Service<bool, 'Result>
     getFirstBlockId: CourseId -> Service<BlockId option, 'Result>
-    setCurrentBlock: CourseId -> BlockId option -> Service<'Result> }
+    setCurrentBlock: CourseId -> BlockId option -> Service<'Result>
+    getPrevBlockId: CourseId -> Service<BlockId option, 'Result>
+    getNextBlockId: CourseId -> Service<BlockId option, 'Result>
+    getCurrentBlockContent: CourseId -> Service<Content list, 'Result> }
 
 // Values
 /// Initial state
@@ -101,7 +130,7 @@ let private updateListingCourses
   checkCourseStarted courseId <|
     fun started ->
       if started then
-        callback (StudyingCourse courseId) None
+        callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
       else
         callback (ViewingCourse (courseId, ViewingCourse.Started)) None
 
@@ -133,25 +162,70 @@ let private updateListingCourses
 
 let private updateViewingCourse
   callback getFirstBlockId setCurrentBlock courseId = function
-| Some ViewingCourse.Exit ->
-  callback (Idle Idle.SelectCanceled) None
-
 | Some ViewingCourse.Start ->
   getFirstBlockId courseId <|
     function
     | Some blockId ->
       setCurrentBlock courseId (Some blockId) <|
-        fun () -> callback (StudyingCourse courseId) None
+        fun () ->
+          callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
 
     | None ->
       callback (ViewingCourse (courseId, ViewingCourse.CourseEmpty)) None
 
+  | Some ViewingCourse.Exit ->
+    callback (Idle Idle.Exited) None
+
 | None ->
   callback (ViewingCourse (courseId, ViewingCourse.Error)) None
 
-// Stub
-let private updateStudyingCourse callback courseId =
-  callback (StudyingCourse courseId) None
+let private updateStudyingCourse
+  { callback = callback
+    getCurrentBlockContent = getCurrentBlockContent
+    getPrevBlockId = getPrevBlockId
+    getNextBlockId = getNextBlockId
+    setCurrentBlock = setCurrentBlock } courseId = function
+| Some (StudyingCourse.ShowInfo show) ->
+  getCurrentBlockContent courseId <|
+    fun contents ->
+      callback
+        (StudyingCourse (courseId, StudyingCourse.Studying))
+        (Some (show contents))
+
+| Some (StudyingCourse.Prev informMin) ->
+  getPrevBlockId courseId <|
+    function
+    | Some blockId ->
+      setCurrentBlock courseId (Some blockId) <|
+        fun () ->
+          callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
+
+    | None ->
+      callback
+        (StudyingCourse (courseId, StudyingCourse.Studying)) (Some informMin)
+
+| Some (StudyingCourse.Next informMax) ->
+  getNextBlockId courseId <|
+    function
+    | Some blockId ->
+      setCurrentBlock courseId (Some blockId) <|
+        fun () ->
+          callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
+
+    | None ->
+      callback
+        (StudyingCourse (courseId, StudyingCourse.Studying)) (Some informMax)
+
+| Some StudyingCourse.Close ->
+  setCurrentBlock courseId None <|
+    fun () ->
+      callback (ViewingCourse (courseId, ViewingCourse.Closed)) None
+
+| Some StudyingCourse.Exit ->
+  callback (Idle Idle.Exited) None
+
+| None ->
+  callback (StudyingCourse (courseId, StudyingCourse.Error)) None
 
 let update services commands =
   let s = services
@@ -174,5 +248,6 @@ let update services commands =
     |> updateViewingCourse
       s.callback s.getFirstBlockId s.setCurrentBlock courseId
 
-  | StudyingCourse courseId ->
-    updateStudyingCourse s.callback courseId
+  | StudyingCourse (courseId, _) ->
+    commands.getStudyingCourse ()
+    |> updateStudyingCourse s courseId

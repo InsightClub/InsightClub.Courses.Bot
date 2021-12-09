@@ -59,6 +59,9 @@ let renderQueryEffect = function
 | Some Commands.InformMax ->
   None, Some "Вы дошли до максимума"
 
+| Some (Commands.ShowBlock contents) ->
+  Some contents, None
+
 | None ->
   None, None
 
@@ -77,7 +80,9 @@ let onUpdate getConnection ctx = async {
 
     let getCourses = Repo.getCourses connection customerId
     let getCourseData = Repo.getCourseData connection
-    let! text, keyboard = Render.state getCourses getCourseData user state
+    let getCurrentBlockTitle = Repo.getCurrentBlockTitle connection customerId
+    let! text, keyboard =
+      Render.state getCourses getCourseData getCurrentBlockTitle user state
 
     match lastId with
     | Some messageId ->
@@ -102,24 +107,65 @@ let onUpdate getConnection ctx = async {
     let commands = Commands.onQuery query
     let! state, effect = Core.update services commands state
 
-    let effectText, queryAnswer = renderQueryEffect effect
+    let effectContent, queryAnswer = renderQueryEffect effect
 
     let getCourses = Repo.getCourses connection customerId
     let getCourseData = Repo.getCourseData connection
-    let! text, keyboard = Render.state getCourses getCourseData user state
+    let getCurrentBlockTitle = Repo.getCurrentBlockTitle connection customerId
+    let! text, keyboard =
+      Render.state getCourses getCourseData getCurrentBlockTitle user state
 
     do! answerCallbackQuery config query.Id queryAnswer
 
     let! lastId = async {
-      match effectText with
-      | Some effectText ->
+      match effectContent with
+      | Some contents ->
         do! removeKeyboard config user.Id message.MessageId
 
-        do!
-          sendMessage config user.Id effectText None
-          |> Async.Ignore
+        for content in contents do
+          match content with
+          | Core.Text text ->
+            do!
+              sendMessage config user.Id text None
+              |> Async.Ignore
 
-        if text <> String.Empty then
+          | Core.Photo fileId ->
+            do!
+              Api.sendPhoto user.Id (FileId fileId) ""
+              |> Api.api config
+              |> Async.Ignore
+
+          | Core.Audio fileId ->
+            do!
+              Api.sendAudio user.Id (FileId fileId) "" None None
+              |> Api.api config
+              |> Async.Ignore
+
+          | Core.Video fileId ->
+            do!
+              Api.sendVideo user.Id (FileId fileId) ""
+              |> Api.api config
+              |> Async.Ignore
+
+          | Core.Voice fileId ->
+            do!
+              Api.sendVoice user.Id (FileId fileId) ""
+              |> Api.api config
+              |> Async.Ignore
+
+          | Core.Document fileId ->
+            do!
+              Api.sendDocument user.Id (FileId fileId) ""
+              |> Api.api config
+              |> Async.Ignore
+
+          | Core.VideoNote fileId ->
+            do!
+              Api.sendVideoNote user.Id (FileId fileId)
+              |> Api.api config
+              |> Async.Ignore
+
+        if text <> String.Empty && not <| List.isEmpty contents then
           return! sendMessage config user.Id text keyboard
         else
           return None

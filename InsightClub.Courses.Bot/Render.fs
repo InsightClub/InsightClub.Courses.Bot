@@ -57,6 +57,9 @@ let private idleMsg (user: User) = function
 | Idle.SelectCanceled ->
   "Выбор курса отменён 👌"
 
+| Idle.Exited ->
+  "Как прикажете 🧞‍♂️"
+
 | Idle.Error ->
   c$"Неизвестная команда {randomEmoji ()}
     Отправьте {Commands.help} для получения помощи 👀"
@@ -90,17 +93,33 @@ let private viewingCourseMsg data = function
 
     {data}"
 
+| ViewingCourse.Closed ->
+  c$"Курс закрыт 👌
+    Вы в любой момент можете начать его с помощью кнопки ниже.
+
+    {data}"
+
 | ViewingCourse.Error ->
   c$"Неизвестная команда {randomEmoji ()}
 
     {data}"
 
+let private studyingCourseMsg title = function
+| StudyingCourse.Studying ->
+  title
+
+| StudyingCourse.Error ->
+  c$"Неизвестная команда {randomEmoji ()}
+
+    {title}"
+
 module private Button =
-  let cancel = "Отмена ❌"
   let exit = "Выход 🚪"
   let prev = "⬅️"
   let next = "➡️"
   let start = "Начать ⚡️"
+  let close = "Закрыть 🔓"
+  let show = "Читать 👁‍🗨"
 
 let private button text command : Button =
   { Text = text
@@ -112,7 +131,7 @@ let private button text command : Button =
     SwitchInlineQuery = None
     SwitchInlineQueryCurrentChat = None }
 
-let state getCourses getCourseData user state = async {
+let state getCourses getCourseData getCurrentBlockTitle user state = async {
   match state with
   | Inactive ->
     return String.Empty, None
@@ -147,6 +166,13 @@ let state getCourses getCourseData user state = async {
         [ [ button Button.start Commands.start ]
           [ button Button.exit Commands.exit ] ]
 
-  // Stub
-  | StudyingCourse _ ->
-    return "", None }
+  | StudyingCourse (courseId, msg) ->
+    let! title = getCurrentBlockTitle courseId
+    return
+      studyingCourseMsg title msg,
+      Some
+        [ [ button Button.prev Commands.prev
+            button Button.show Commands.show
+            button Button.next Commands.next ]
+          [ button Button.close Commands.close ]
+          [ button Button.exit Commands.exit ] ] }

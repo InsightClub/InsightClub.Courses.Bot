@@ -157,3 +157,85 @@ let getCourseData connection courseId =
         read.string "course_title",
         read.string "course_description" )
   |> Async.AwaitTask
+
+let getNextOrPrevBlockId connection customerId courseId getNext =
+  let sign = if getNext then '>' else '<'
+  let order = if getNext then "ASC" else "DESC"
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    $"SELECT COALESCE((
+      SELECT block_id
+      FROM blocks
+      WHERE course_id = @course_id
+      AND block_index {sign} (
+        SELECT block_index
+        FROM blocks
+        WHERE course_id = @course_id
+        AND block_id = (
+          SELECT block_id
+          FROM customer_courses
+          WHERE customer_id = @customer_id
+          AND course_id = @course_id
+        )
+      )
+      ORDER BY block_index {order}
+      LIMIT 1),
+      NULL
+    ) as block_id"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.intOrNone "block_id")
+  |> Async.AwaitTask
+
+let getCurrentBlockContent connection customerId courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT content, content_type
+    FROM contents
+    WHERE block_id = (
+      SELECT block_id
+      FROM customer_courses
+      WHERE customer_id = @customer_id
+      AND course_id = @course_id
+    )
+    ORDER BY content_index"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId ]
+  |> Sql.executeAsync
+    ( fun read ->
+        let content = read.string "content"
+        match read.string "content_type" with
+        | "text"       -> Core.Text content
+        | "photo"      -> Core.Photo content
+        | "audio"      -> Core.Audio content
+        | "video"      -> Core.Video content
+        | "voice"      -> Core.Voice content
+        | "video_note" -> Core.VideoNote content
+        | "document"   -> Core.Document content
+        | _            -> failwith "Unknown content type" )
+  |> Async.AwaitTask
+
+let getCurrentBlockTitle connection customerId courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    $"SELECT COALESCE((
+      SELECT block_title
+      FROM blocks
+      WHERE block_id = (
+        SELECT block_id
+        FROM customer_courses
+        WHERE customer_id = @customer_id
+        AND course_id = @course_id
+      )),
+      ''
+    ) as block_title"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.string "block_title")
+  |> Async.AwaitTask

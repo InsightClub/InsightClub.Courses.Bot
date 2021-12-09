@@ -11,6 +11,7 @@ type CallbackQuery = Types.CallbackQuery
 type QueryEffect =
   | InformMin
   | InformMax
+  | ShowBlock of Content list
 
 let start = "/start"
 let help = "/help"
@@ -18,6 +19,8 @@ let select = "/select"
 let prev = "/prev"
 let next = "/next"
 let exit = "/exit"
+let show = "/show"
+let close = "/close"
 
 let private (|Command|_|) command = function
 | { Message.Text = Some text }
@@ -81,10 +84,13 @@ let onMessage message : BotCommands<unit> =
 
   let getViewingCourse () = None
 
+  let getStudyingCourse () = None
+
   { getInactive = getInactive
     getIdle = getIdle
     getListingCourses = getListingCourses
-    getViewingCourse = getViewingCourse }
+    getViewingCourse = getViewingCourse
+    getStudyingCourse = getStudyingCourse }
 
 let onQuery query =
   let getInactive () = None
@@ -105,7 +111,17 @@ let onQuery query =
     | CommandQ exit  -> Some ViewingCourse.Exit
     | _              -> None
 
+  let getStudyingCourse () =
+    match query with
+    | CommandQ show  -> Some <| StudyingCourse.ShowInfo QueryEffect.ShowBlock
+    | CommandQ prev  -> Some <| StudyingCourse.Prev QueryEffect.InformMin
+    | CommandQ next  -> Some <| StudyingCourse.Next QueryEffect.InformMax
+    | CommandQ close -> Some StudyingCourse.Close
+    | CommandQ exit  -> Some StudyingCourse.Exit
+    | _              -> None
+
   { getInactive = getInactive
     getIdle = getIdle
     getListingCourses = getListingCourses
-    getViewingCourse = getViewingCourse }
+    getViewingCourse = getViewingCourse
+    getStudyingCourse = getStudyingCourse }
