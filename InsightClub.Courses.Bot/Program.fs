@@ -34,8 +34,7 @@ let startBot
         WebHook = Some webhook }
 
   let printError e =
-    printfn "Failed creating webhook:"
-    printfn "%A" e
+    failwith <| sprintf "Failed creating webhook: %A" e
 
   let printStarted () =
     printfn
