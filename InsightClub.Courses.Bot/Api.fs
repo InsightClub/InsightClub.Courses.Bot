@@ -52,19 +52,6 @@ let editMessage config messageId userId text keyboard = async {
     |> Async.StartChild
     |> Async.Ignore }
 
-let renderQueryEffect = function
-| Some Commands.InformMin ->
-  None, Some "Вы дошли до минимума"
-
-| Some Commands.InformMax ->
-  None, Some "Вы дошли до максимума"
-
-| Some (Commands.ShowBlock contents) ->
-  Some contents, None
-
-| None ->
-  None, None
-
 let onUpdate getConnection ctx = async {
   use connection = getConnection ()
   let config = ctx.Config
@@ -107,7 +94,7 @@ let onUpdate getConnection ctx = async {
     let commands = Commands.onQuery query
     let! state, effect = Core.update services commands state
 
-    let effectContent, queryAnswer = renderQueryEffect effect
+    let effectContents, queryAnswer = Render.queryEffect effect
 
     let getCourses = Repo.getCourses connection customerId
     let getCourseData = Repo.getCourseData connection
@@ -118,8 +105,15 @@ let onUpdate getConnection ctx = async {
     do! answerCallbackQuery config query.Id queryAnswer
 
     let! lastId = async {
-      match effectContent with
-      | Some contents ->
+      match effectContents with
+      | [ ] ->
+        if text <> String.Empty then
+          do! editMessage config message.MessageId user.Id text keyboard
+          return Option.map (always message.MessageId) keyboard
+        else
+          return Some message.MessageId
+
+      | contents ->
         do! removeKeyboard config user.Id message.MessageId
 
         for content in contents do
@@ -168,14 +162,7 @@ let onUpdate getConnection ctx = async {
         if text <> String.Empty && not <| List.isEmpty contents then
           return! sendMessage config user.Id text keyboard
         else
-          return None
-
-      | None ->
-        if text <> String.Empty then
-          do! editMessage config message.MessageId user.Id text keyboard
-          return Option.map (always message.MessageId) keyboard
-        else
-          return Some message.MessageId }
+          return None  }
 
     do! State.update connection customerId lastId state
 

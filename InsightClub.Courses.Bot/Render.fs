@@ -183,3 +183,16 @@ let state getCourses getCourseData getCurrentBlockTitle user state = async {
             button Button.next Commands.next ]
           [ button Button.close Commands.close ]
           [ button Button.exit Commands.exit ] ] }
+
+let queryEffect = function
+| Some Commands.InformMin ->
+  [ ], Some "Вы дошли до начала."
+
+| Some Commands.InformMax ->
+  [ ], Some "Вы дошли до конца."
+
+| Some (Commands.ShowBlock contents) ->
+  contents, None
+
+| None ->
+  [ ], None
