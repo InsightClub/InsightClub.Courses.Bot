@@ -155,10 +155,10 @@ let state getCourses getCourseData getCurrentBlockTitle user state = async {
         [ for (id, title) in courses do
             yield [ button title $"{Commands.select} {id}" ]
 
-            yield [ button Button.prev Commands.prev
-                    button Button.next Commands.next ]
+          yield [ button Button.prev Commands.prev
+                  button Button.next Commands.next ]
 
-            yield [ button Button.exit Commands.exit ] ]
+          yield [ button Button.exit Commands.exit ] ]
 
   | ViewingCourse (courseId, msg) ->
     let! title, desc = getCourseData courseId
