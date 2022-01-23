@@ -19,10 +19,14 @@ type Database =
     Password: String
     Port: Int32 }
 
+type Storage =
+  { Path: String }
+
 type Config =
   { Token: String
     Server: Server
-    Database: Database }
+    Database: Database
+    Storage: Storage }
 
 // Values
 module Config =
