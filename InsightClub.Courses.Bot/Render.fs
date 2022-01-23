@@ -20,7 +20,7 @@ let randomEmoji () =
 
 let private commands =
   c$"{Commands.select} - Выбрать курс ⚡️
-    {Commands.help} - Получить помощь (Вы сейчас здесь) 👀"
+    {Commands.help} - Получить помощь 👀"
 
 let private idleMsg (user: User) = function
 | Idle.Started ->
