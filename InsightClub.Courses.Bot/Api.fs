@@ -52,7 +52,84 @@ let editMessage config messageId userId text keyboard = async {
     |> Async.StartChild
     |> Async.Ignore }
 
-let onUpdate getConnection ctx = async {
+let sendContent config userId storagePath content = async {
+  let makeFile fileId =
+    FileToSend.File <| (fileId, Storage.getFile storagePath fileId)
+
+  match content with
+  | Core.Text text ->
+    do!
+      Api.sendMessage userId text
+      |> Api.api config
+      |> Async.Ignore
+
+  | Core.Photo fileId ->
+    do!
+      Api.sendChatAction userId ChatAction.UploadPhoto
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendPhoto userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
+
+  | Core.Audio fileId ->
+    do!
+      Api.sendChatAction userId ChatAction.UploadAudio
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendAudio userId (makeFile fileId) "" None None
+      |> Api.api config
+      |> Async.Ignore
+
+  | Core.Video fileId ->
+    do!
+      Api.sendChatAction userId ChatAction.UploadVideo
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendVideo userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
+
+  | Core.Voice fileId ->
+    do!
+      Api.sendChatAction userId ChatAction.UploadAudio
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendVoice userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
+
+  | Core.Document fileId ->
+    do!
+      Api.sendChatAction userId ChatAction.UploadDocument
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendDocument userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
+
+  | Core.VideoNote fileId ->
+    do!
+      Api.sendChatAction userId ChatAction.UploadVideoNote
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendVideoNote userId (makeFile fileId)
+      |> Api.api config
+      |> Async.Ignore }
+
+let onUpdate getConnection storagePath ctx = async {
   use connection = getConnection ()
   let config = ctx.Config
 
@@ -116,48 +193,11 @@ let onUpdate getConnection ctx = async {
       | contents ->
         do! removeKeyboard config user.Id message.MessageId
 
-        for content in contents do
-          match content with
-          | Core.Text text ->
-            do!
-              sendMessage config user.Id text None
-              |> Async.Ignore
-
-          | Core.Photo fileId ->
-            do!
-              Api.sendPhoto user.Id (FileId fileId) ""
-              |> Api.api config
-              |> Async.Ignore
-
-          | Core.Audio fileId ->
-            do!
-              Api.sendAudio user.Id (FileId fileId) "" None None
-              |> Api.api config
-              |> Async.Ignore
-
-          | Core.Video fileId ->
-            do!
-              Api.sendVideo user.Id (FileId fileId) ""
-              |> Api.api config
-              |> Async.Ignore
-
-          | Core.Voice fileId ->
-            do!
-              Api.sendVoice user.Id (FileId fileId) ""
-              |> Api.api config
-              |> Async.Ignore
-
-          | Core.Document fileId ->
-            do!
-              Api.sendDocument user.Id (FileId fileId) ""
-              |> Api.api config
-              |> Async.Ignore
-
-          | Core.VideoNote fileId ->
-            do!
-              Api.sendVideoNote user.Id (FileId fileId)
-              |> Api.api config
-              |> Async.Ignore
+        do!
+          contents
+          |> List.map (sendContent config user.Id storagePath)
+          |> Async.Sequential
+          |> Async.Ignore
 
         if text <> String.Empty && not <| List.isEmpty contents then
           return! sendMessage config user.Id text keyboard
