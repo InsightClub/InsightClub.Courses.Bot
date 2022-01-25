@@ -3,13 +3,23 @@ module InsightClub.Courses.Bot.Repo
 open Npgsql.FSharp
 
 
-let getState initialState connection telegramId =
-  connection
-  |> Sql.existingConnection
-  |> Sql.query
+let getOrCreateCustomer telegramId firstName lastName username initialState =
+  Sql.existingConnection
+  >> Sql.query
     "WITH i AS(
-      INSERT INTO customers (telegram_id, telegram_state)
-      VALUES (@telegram_id, @initial_state)
+      INSERT INTO customers (
+        telegram_id,
+        first_name,
+        last_name,
+        username,
+        telegram_state
+      )
+      VALUES (
+        @telegram_id,
+        @first_name,
+        @last_name,
+        @username,
+        @initial_state)
       ON CONFLICT(telegram_id)
       DO NOTHING
       RETURNING customer_id, telegram_state
@@ -19,28 +29,37 @@ let getState initialState connection telegramId =
     SELECT customer_id, telegram_state
     FROM customers
     WHERE telegram_id = @telegram_id"
-  |> Sql.parameters
+  >> Sql.parameters
     [ "telegram_id", Sql.int64 telegramId
+      "first_name", Sql.string firstName
+      "last_name", Sql.stringOrNone lastName
+      "username", Sql.stringOrNone username
       "initial_state", Sql.string initialState ]
-  |> Sql.executeRowAsync
+  >> Sql.executeRowAsync
     ( fun read ->
         read.int "customer_id",
         read.string "telegram_state" )
-  |> Async.AwaitTask
+  >> Async.AwaitTask
 
-let updateState connection customerId state =
-  connection
-  |> Sql.existingConnection
-  |> Sql.query
+let updateCustomer customerId firstName lastName username state =
+  Sql.existingConnection
+  >> Sql.query
     "UPDATE customers
-    SET telegram_state = @new_state
+    SET
+      first_name = @first_name,
+      last_name = @last_name,
+      username = @username,
+      telegram_state = @state
     WHERE customer_id = @customer_id"
-  |> Sql.parameters
-    [ "new_state", Sql.string state
+  >> Sql.parameters
+    [ "first_name", Sql.string firstName
+      "last_name", Sql.stringOrNone lastName
+      "username", Sql.stringOrNone username
+      "state", Sql.string state
       "customer_id", Sql.int customerId ]
-  |> Sql.executeNonQueryAsync
-  |> Async.AwaitTask
-  |> Async.Ignore
+  >> Sql.executeNonQueryAsync
+  >> Async.AwaitTask
+  >> Async.Ignore
 
 let checkAnyCourses connection customerId =
   connection

@@ -20,7 +20,7 @@
     <Compile Include="Repo.fs" />
     <Compile Include="Storage.fs" />
     <Compile Include="Services.fs" />
-    <Compile Include="State.fs" />
+    <Compile Include="Customer.fs" />
     <Compile Include="Commands.fs" />
     <Compile Include="Render.fs" />
     <Compile Include="Api.fs" />
