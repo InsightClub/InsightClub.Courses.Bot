@@ -24,7 +24,7 @@ module Inactive =
 module Idle =
   type Command =
     | Help
-    | Select of Count
+    | Start of Count
 
   type Msg =
     | Started
@@ -113,7 +113,7 @@ let private updateIdle callback checkAnyCourses = function
 | Some Idle.Help ->
   callback (Idle Idle.Helping) None
 
-| Some (Idle.Select count) ->
+| Some (Idle.Start count) ->
   checkAnyCourses <|
     fun any ->
       if any then
