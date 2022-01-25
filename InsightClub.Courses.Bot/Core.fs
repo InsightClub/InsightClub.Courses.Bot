@@ -173,8 +173,8 @@ let private updateViewingCourse
     | None ->
       callback (ViewingCourse (courseId, ViewingCourse.CourseEmpty)) None
 
-  | Some ViewingCourse.Exit ->
-    callback (Idle Idle.Exited) None
+| Some ViewingCourse.Exit ->
+  callback (Idle Idle.Exited) None
 
 | None ->
   callback (ViewingCourse (courseId, ViewingCourse.Error)) None
