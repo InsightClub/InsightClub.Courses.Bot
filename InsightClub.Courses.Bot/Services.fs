@@ -3,6 +3,17 @@ module InsightClub.Courses.Bot.Services
 open Core
 
 
+let private mapContent = function
+| text, "text"         -> Text text
+| fileId, "photo"      -> Photo fileId
+| fileId, "audio"      -> Audio fileId
+| fileId, "video"      -> Video fileId
+| fileId, "voice"      -> Voice fileId
+| fileId, "document"   -> Document fileId
+| fileId, "video_note" -> VideoNote fileId
+| fileId, contentType  ->
+  failwith $"Unknown content type: {contentType}! FileId: {fileId}"
+
 let get connection customerId =
   let callback state effect =
     Async.singleton (state, effect)
@@ -52,6 +63,8 @@ let get connection customerId =
   let getCurrentBlockContent courseId callback = async {
     let! contents =
       Repo.getCurrentBlockContent connection customerId courseId
+
+    let contents = contents |> List.map mapContent
 
     return! callback contents }
 

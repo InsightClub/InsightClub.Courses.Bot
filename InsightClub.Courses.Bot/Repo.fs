@@ -229,16 +229,8 @@ let getCurrentBlockContent connection customerId courseId =
       "course_id", Sql.int courseId ]
   |> Sql.executeAsync
     ( fun read ->
-        let content = read.string "content"
-        match read.string "content_type" with
-        | "text"       -> Core.Text content
-        | "photo"      -> Core.Photo content
-        | "audio"      -> Core.Audio content
-        | "video"      -> Core.Video content
-        | "voice"      -> Core.Voice content
-        | "video_note" -> Core.VideoNote content
-        | "document"   -> Core.Document content
-        | _            -> failwith "Unknown content type" )
+        read.string "content",
+        read.string "content_type" )
   |> Async.AwaitTask
 
 let getCurrentBlockTitle connection customerId courseId =
