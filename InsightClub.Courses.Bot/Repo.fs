@@ -14,7 +14,7 @@ let getOrCreateCustomer
         first_name,
         last_name,
         username,
-        telegram_state
+        telegram_bot_state
       )
       VALUES (
         @telegram_id,
@@ -24,11 +24,11 @@ let getOrCreateCustomer
         @initial_state)
       ON CONFLICT(telegram_id)
       DO NOTHING
-      RETURNING customer_id, telegram_state
+      RETURNING customer_id, telegram_bot_state
     )
     SELECT * FROM i
     UNION
-    SELECT customer_id, telegram_state
+    SELECT customer_id, telegram_bot_state
     FROM customers
     WHERE telegram_id = @telegram_id"
   |> Sql.parameters
@@ -40,7 +40,7 @@ let getOrCreateCustomer
   |> Sql.executeRowAsync
     ( fun read ->
         read.int "customer_id",
-        read.string "telegram_state" )
+        read.string "telegram_bot_state" )
   |> Async.AwaitTask
 
 let updateCustomer connection customerId firstName lastName username state =
@@ -52,7 +52,7 @@ let updateCustomer connection customerId firstName lastName username state =
       first_name = @first_name,
       last_name = @last_name,
       username = @username,
-      telegram_state = @state
+      telegram_bot_state = @state
     WHERE customer_id = @customer_id"
   |> Sql.parameters
     [ "first_name", Sql.string firstName
