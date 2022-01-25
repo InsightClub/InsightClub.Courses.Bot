@@ -88,7 +88,7 @@ let onMessage message : BotCommands<unit> =
 
   { getInactive = getInactive
     getIdle = getIdle
-    getListingCourses = getListingCourses
+    getListingMyCourses = getListingCourses
     getViewingCourse = getViewingCourse
     getStudyingCourse = getStudyingCourse }
 
@@ -99,10 +99,10 @@ let onQuery query =
 
   let getListingCourses () =
     match query with
-    | ParamQ select id -> Some <| ListingCourses.Select id
-    | CommandQ prev    -> Some <| ListingCourses.Prev QueryEffect.InformMin
-    | CommandQ next    -> Some <| ListingCourses.Next QueryEffect.InformMax
-    | CommandQ exit    -> Some ListingCourses.Exit
+    | ParamQ select id -> Some <| ListingMyCourses.Select id
+    | CommandQ prev    -> Some <| ListingMyCourses.Prev QueryEffect.InformMin
+    | CommandQ next    -> Some <| ListingMyCourses.Next QueryEffect.InformMax
+    | CommandQ exit    -> Some ListingMyCourses.Exit
     | _                -> None
 
   let getViewingCourse () =
@@ -122,6 +122,6 @@ let onQuery query =
 
   { getInactive = getInactive
     getIdle = getIdle
-    getListingCourses = getListingCourses
+    getListingMyCourses = getListingCourses
     getViewingCourse = getViewingCourse
     getStudyingCourse = getStudyingCourse }
