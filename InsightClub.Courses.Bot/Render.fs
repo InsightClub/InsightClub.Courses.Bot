@@ -126,7 +126,7 @@ module private Button =
   let next = "➡️"
   let start = "Начать ⚡️"
   let close = "Закрыть 🔓"
-  let show = "Просмотреть 👁‍🗨"
+  let show = "Читать 👁‍🗨"
 
 let private button text command : Button =
   { Text = text
