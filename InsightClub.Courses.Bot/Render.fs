@@ -74,10 +74,10 @@ let private idleMsg (user: User) = function
 let private listingCoursesMsg page count courseCount msg =
   let m s =
     match msg with
-    | ListingMyCourses.Started ->
+    | ListingCourses.Started ->
       s
 
-    | ListingMyCourses.Error ->
+    | ListingCourses.Error ->
       c$"Неизвестная команда. {randomEmoji ()}
 
         {s}"
@@ -146,7 +146,7 @@ let state getCourses getCourseData getCurrentBlockTitle user state = async {
   | Idle msg ->
     return idleMsg user msg, None
 
-  | ListingMyCourses (page, count, msg) ->
+  | ListingCourses (page, count, msg) ->
     let! courses = getCourses page count
 
     return

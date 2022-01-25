@@ -34,7 +34,7 @@ module Idle =
     | Exited
     | Error
 
-module ListingMyCourses =
+module ListingCourses =
   type Command<'Effect> =
     | Select of CourseId
     | Prev of 'Effect
@@ -71,7 +71,7 @@ module StudyingCourse =
 type BotState =
   | Inactive
   | Idle of Idle.Msg
-  | ListingMyCourses of Page * Count * ListingMyCourses.Msg
+  | ListingCourses of Page * Count * ListingCourses.Msg
   | ViewingCourse of CourseId * ViewingCourse.Msg
   | StudyingCourse of CourseId * StudyingCourse.Msg
 
@@ -80,7 +80,7 @@ type GetCommand<'Command> = unit -> 'Command option
 type BotCommands<'Effect> =
   { getInactive: GetCommand<Inactive.Command>
     getIdle: GetCommand<Idle.Command>
-    getListingMyCourses: GetCommand<ListingMyCourses.Command<'Effect>>
+    getListingCourses: GetCommand<ListingCourses.Command<'Effect>>
     getViewingCourse: GetCommand<ViewingCourse.Command>
     getStudyingCourse: GetCommand<StudyingCourse.Command<'Effect>> }
 
@@ -117,16 +117,16 @@ let private updateIdle callback checkAnyCourses = function
   checkAnyCourses <|
     fun any ->
       if any then
-        callback (ListingMyCourses (0, count, ListingMyCourses.Started)) None
+        callback (ListingCourses (0, count, ListingCourses.Started)) None
       else
         callback (Idle Idle.NoCourses) None
 
 | None ->
   callback (Idle Idle.Error) None
 
-let private updateListingMyCourses
+let private updateListingCourses
   callback getCoursesCount checkCourseStarted page count = function
-| Some (ListingMyCourses.Select courseId) ->
+| Some (ListingCourses.Select courseId) ->
   checkCourseStarted courseId <|
     fun started ->
       if started then
@@ -134,31 +134,31 @@ let private updateListingMyCourses
       else
         callback (ViewingCourse (courseId, ViewingCourse.Started)) None
 
-| Some (ListingMyCourses.Prev informMin) ->
+| Some (ListingCourses.Prev informMin) ->
   let state, effect =
     if page = 0 then
-      ListingMyCourses (page, count, ListingMyCourses.Started), Some informMin
+      ListingCourses (page, count, ListingCourses.Started), Some informMin
     else
-      ListingMyCourses (page - 1, count, ListingMyCourses.Started), None
+      ListingCourses (page - 1, count, ListingCourses.Started), None
 
   callback state effect
 
-| Some (ListingMyCourses.Next informMax) ->
+| Some (ListingCourses.Next informMax) ->
   getCoursesCount <|
     fun coursesCount ->
       let state, effect =
         if (page + 1) * count >= coursesCount then
-          ListingMyCourses (page, count, ListingMyCourses.Started), Some informMax
+          ListingCourses (page, count, ListingCourses.Started), Some informMax
         else
-          ListingMyCourses (page + 1, count, ListingMyCourses.Started), None
+          ListingCourses (page + 1, count, ListingCourses.Started), None
 
       callback state effect
 
-| Some ListingMyCourses.Exit ->
+| Some ListingCourses.Exit ->
   callback (Idle Idle.SelectCanceled) None
 
 | None ->
-  callback (ListingMyCourses (page, count, ListingMyCourses.Error)) None
+  callback (ListingCourses (page, count, ListingCourses.Error)) None
 
 let private updateViewingCourse
   callback getFirstBlockId setCurrentBlock courseId = function
@@ -238,9 +238,9 @@ let update services commands =
     commands.getIdle()
     |> updateIdle s.callback s.checkAnyCourses
 
-  | ListingMyCourses (page, count, _) ->
-    commands.getListingMyCourses ()
-    |> updateListingMyCourses
+  | ListingCourses (page, count, _) ->
+    commands.getListingCourses ()
+    |> updateListingCourses
       s.callback s.getCoursesCount s.checkCourseStarted page count
 
   | ViewingCourse (courseId, _) ->
