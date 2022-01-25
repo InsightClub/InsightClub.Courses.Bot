@@ -3,9 +3,11 @@ module InsightClub.Courses.Bot.Repo
 open Npgsql.FSharp
 
 
-let getOrCreateCustomer telegramId firstName lastName username initialState =
-  Sql.existingConnection
-  >> Sql.query
+let getOrCreateCustomer
+  connection telegramId firstName lastName username initialState =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
     "WITH i AS(
       INSERT INTO customers (
         telegram_id,
@@ -29,21 +31,22 @@ let getOrCreateCustomer telegramId firstName lastName username initialState =
     SELECT customer_id, telegram_state
     FROM customers
     WHERE telegram_id = @telegram_id"
-  >> Sql.parameters
+  |> Sql.parameters
     [ "telegram_id", Sql.int64 telegramId
       "first_name", Sql.string firstName
       "last_name", Sql.stringOrNone lastName
       "username", Sql.stringOrNone username
       "initial_state", Sql.string initialState ]
-  >> Sql.executeRowAsync
+  |> Sql.executeRowAsync
     ( fun read ->
         read.int "customer_id",
         read.string "telegram_state" )
-  >> Async.AwaitTask
+  |> Async.AwaitTask
 
-let updateCustomer customerId firstName lastName username state =
-  Sql.existingConnection
-  >> Sql.query
+let updateCustomer connection customerId firstName lastName username state =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
     "UPDATE customers
     SET
       first_name = @first_name,
@@ -51,15 +54,15 @@ let updateCustomer customerId firstName lastName username state =
       username = @username,
       telegram_state = @state
     WHERE customer_id = @customer_id"
-  >> Sql.parameters
+  |> Sql.parameters
     [ "first_name", Sql.string firstName
       "last_name", Sql.stringOrNone lastName
       "username", Sql.stringOrNone username
       "state", Sql.string state
       "customer_id", Sql.int customerId ]
-  >> Sql.executeNonQueryAsync
-  >> Async.AwaitTask
-  >> Async.Ignore
+  |> Sql.executeNonQueryAsync
+  |> Async.AwaitTask
+  |> Async.Ignore
 
 let checkAnyCourses connection customerId =
   connection

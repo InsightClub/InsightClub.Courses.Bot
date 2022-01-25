@@ -20,9 +20,9 @@ let initialJson =
   create None Core.initial
   |> Json.serialize
 
-let getOrCreate (user: User) connection =
+let getOrCreate connection (user: User) =
   Repo.getOrCreateCustomer
-    user.Id user.FirstName user.LastName user.Username initialJson connection
+    connection user.Id user.FirstName user.LastName user.Username initialJson
   |> Async.map
     ( fun (customerId, stateJson) ->
         let { LastId = lastId; State = state } =
@@ -30,10 +30,10 @@ let getOrCreate (user: User) connection =
 
         customerId, lastId, state )
 
-let update customerId (user: User) lastId state connection =
+let update connection customerId (user: User) lastId state =
   let state =
     create lastId state
     |> Json.serialize
 
   Repo.updateCustomer
-    customerId user.FirstName user.LastName user.Username state connection
+    connection customerId user.FirstName user.LastName user.Username state

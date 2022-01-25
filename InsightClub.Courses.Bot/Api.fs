@@ -136,7 +136,7 @@ let onUpdate getConnection storagePath ctx = async {
   match ctx.Update with
   // Message updates
   | { Message = Some ({ From = Some user } as message) } ->
-    let! customerId, lastId, state = Customer.getOrCreate user connection
+    let! customerId, lastId, state = Customer.getOrCreate connection user
 
     let services = Services.get connection customerId
     let commands = Commands.onMessage message
@@ -161,11 +161,11 @@ let onUpdate getConnection storagePath ctx = async {
       else
         Async.singleton None
 
-    do! Customer.update customerId user lastId state connection
+    do! Customer.update connection customerId user lastId state
 
   // Inline keyboard updates
   | { CallbackQuery = Some ({ From = user; Message = Some message } as query) } ->
-    let! customerId, _, state = Customer.getOrCreate user connection
+    let! customerId, _, state = Customer.getOrCreate connection user
 
     let services = Services.get connection customerId
     let commands = Commands.onQuery query
@@ -204,7 +204,7 @@ let onUpdate getConnection storagePath ctx = async {
         else
           return None  }
 
-    do! Customer.update customerId user lastId state connection
+    do! Customer.update connection customerId user lastId state
 
   | _ ->
     () }
