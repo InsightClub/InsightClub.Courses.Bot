@@ -24,7 +24,7 @@ module Inactive =
 module Idle =
   type Command =
     | Help
-    | Start of Count
+    | Start
 
   type Msg =
     | Started
@@ -112,6 +112,8 @@ type BotServices<'Effect, 'Result> =
 /// Initial state
 let initial = Inactive
 
+let private coursesPerPage = 5
+
 let private updateInactive callback = function
 | Some Inactive.Start ->
   callback (Idle Idle.Started) None
@@ -123,14 +125,14 @@ let private updateIdle callback checkAnyCourses = function
 | Some Idle.Help ->
   callback (Idle Idle.Helping) None
 
-| Some (Idle.Start count) ->
+| Some Idle.Start ->
   checkAnyCourses <|
     fun any ->
       if any then
         let state : ListingCourses.State =
           { Context = ListingCourses.Added
             Page = 0
-            Count = count
+            Count = coursesPerPage
             Msg = ListingCourses.Started }
 
         callback (ListingCourses state) None

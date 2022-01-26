@@ -77,7 +77,7 @@ let onMessage message : BotCommands<unit> =
   let getIdle () =
     match message with
     | Command help   -> Some Idle.Help
-    | Command start  -> Some <| Idle.Start 5
+    | Command start  -> Some Idle.Start
     | _              -> None
 
   let getListingCourses () = None
