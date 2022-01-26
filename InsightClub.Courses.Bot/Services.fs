@@ -18,9 +18,9 @@ let get connection customerId =
   let callback state effect =
     Async.singleton (state, effect)
 
-  let checkAnyCourses callback = async {
+  let checkMyCourses callback = async {
     let! any =
-      Repo.checkAnyAddedCourses connection customerId
+      Repo.checkMyCourses connection customerId
 
     return! callback any }
 
@@ -69,7 +69,7 @@ let get connection customerId =
     return! callback contents }
 
   { callback = callback
-    checkAnyAddedCourses = checkAnyCourses
+    checkMyCourses = checkMyCourses
     getCoursesCount = getCoursesCount
     checkCourseStarted = checkCourseStarted
     getFirstBlockId = getFirstBlockId

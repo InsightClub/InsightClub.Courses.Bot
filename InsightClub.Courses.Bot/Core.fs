@@ -24,7 +24,7 @@ module Inactive =
 module Idle =
   type Command =
     | Help
-    | Start
+    | MyCourses
 
   type Msg =
     | Started
@@ -46,7 +46,7 @@ module ListingCourses =
     | Error
 
   type Context =
-    | Added
+    | My
     | All
 
   type State =
@@ -99,7 +99,7 @@ type Service<'Result> = Service<unit, 'Result>
 
 type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result
-    checkAnyAddedCourses: Service<bool, 'Result>
+    checkMyCourses: Service<bool, 'Result>
     getCoursesCount: Service<Count, 'Result>
     checkCourseStarted: CourseId -> Service<bool, 'Result>
     getFirstBlockId: CourseId -> Service<BlockId option, 'Result>
@@ -125,12 +125,12 @@ let private updateIdle services = function
 | Some Idle.Help ->
   services.callback (Idle Idle.Helping) None
 
-| Some Idle.Start ->
-  services.checkAnyAddedCourses <|
+| Some Idle.MyCourses ->
+  services.checkMyCourses <|
     fun any ->
       if any then
         let state : ListingCourses.State =
-          { Context = ListingCourses.Added
+          { Context = ListingCourses.My
             Page = 0
             Count = coursesPerPage
             Msg = ListingCourses.Started }
