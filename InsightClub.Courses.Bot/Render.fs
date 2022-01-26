@@ -25,8 +25,8 @@ let randomEmoji () =
   emojis.[ random.Next(emojis.Length) ]
 
 let private commands =
-  c$"{Commands.courses} - Показать доступные курсы 📄
-    {Commands.mycourses} - Показать мои курсы 📌
+  c$"{Commands.courses} - Доступные курсы 📄
+    {Commands.mycourses} - Мои курсы ⭐️
     {Commands.help} - Получить помощь 👀"
 
 let private idleMsg (user: User) = function
