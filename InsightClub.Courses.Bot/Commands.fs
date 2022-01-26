@@ -22,6 +22,7 @@ let exit = "/exit"
 let show = "/show"
 let close = "/close"
 let mycourses = "/mycourses"
+let courses = "/courses"
 
 let private (|Command|_|) command = function
 | { Message.Text = Some text }
@@ -79,6 +80,7 @@ let onMessage message : BotCommands<unit> =
     match message with
     | Command help      -> Some Idle.Help
     | Command mycourses -> Some Idle.MyCourses
+    | Command courses   -> Some Idle.AllCourses
     | _                 -> None
 
   let getListingCourses () = None

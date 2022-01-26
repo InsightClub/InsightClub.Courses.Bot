@@ -78,7 +78,18 @@ let checkMyCourses connection customerId =
   |> Sql.executeRowAsync (fun read -> read.bool "any")
   |> Async.AwaitTask
 
-let getCoursesCount connection customerId =
+let checkAllCourses connection =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT EXISTS(
+      SELECT 1
+      FROM courses
+    ) as any"
+  |> Sql.executeRowAsync (fun read -> read.bool "any")
+  |> Async.AwaitTask
+
+let getMyCoursesCount connection customerId =
   connection
   |> Sql.existingConnection
   |> Sql.query
@@ -90,7 +101,16 @@ let getCoursesCount connection customerId =
   |> Sql.executeRowAsync (fun read -> read.int "count")
   |> Async.AwaitTask
 
-let getCourses connection customerId page count =
+let getAllCoursesCount connection =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT COUNT(*) as count
+    FROM courses"
+  |> Sql.executeRowAsync (fun read -> read.int "count")
+  |> Async.AwaitTask
+
+let getMyCourses connection customerId page count =
   connection
   |> Sql.existingConnection
   |> Sql.query
@@ -108,6 +128,23 @@ let getCourses connection customerId page count =
   |> Sql.parameters
     [ "customer_id", Sql.int customerId
       "limit", Sql.int count
+      "offset", Sql.int (page * count) ]
+  |> Sql.executeAsync
+    ( fun read ->
+        read.int "course_id",
+        read.string "course_title" )
+  |> Async.AwaitTask
+
+let getAllCourses connection page count =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT course_id, course_title
+    FROM courses
+    LIMIT @limit
+    OFFSET @offset"
+  |> Sql.parameters
+    [ "limit", Sql.int count
       "offset", Sql.int (page * count) ]
   |> Sql.executeAsync
     ( fun read ->

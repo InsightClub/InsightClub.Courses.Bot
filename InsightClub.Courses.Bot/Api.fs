@@ -139,14 +139,20 @@ let onUpdate getConnection storagePath ctx = async {
     let! customerId, lastId, state = Customer.getOrCreate connection user
 
     let services = Services.get connection customerId
+
     let commands = Commands.onMessage message
+
     let! state, _ = Core.update services commands state
 
-    let getCourses = Repo.getCourses connection customerId
-    let getCourseData = Repo.getCourseData connection
-    let getCurrentBlockTitle = Repo.getCurrentBlockTitle connection customerId
+    let renderServices : Render.Services =
+      { getMyCourses = Repo.getMyCourses connection customerId
+        getAllCourses = Repo.getAllCourses connection
+        getCourseData = Repo.getCourseData connection
+        getCurrentBlockTitle =
+          Repo.getCurrentBlockTitle connection customerId }
+
     let! text, keyboard =
-      Render.state getCourses getCourseData getCurrentBlockTitle user state
+      Render.state renderServices user state
 
     match lastId with
     | Some messageId ->
@@ -168,16 +174,22 @@ let onUpdate getConnection storagePath ctx = async {
     let! customerId, _, state = Customer.getOrCreate connection user
 
     let services = Services.get connection customerId
+
     let commands = Commands.onQuery query
+
     let! state, effect = Core.update services commands state
 
     let effectContents, queryAnswer = Render.queryEffect effect
 
-    let getCourses = Repo.getCourses connection customerId
-    let getCourseData = Repo.getCourseData connection
-    let getCurrentBlockTitle = Repo.getCurrentBlockTitle connection customerId
+    let renderServices : Render.Services =
+      { getMyCourses = Repo.getMyCourses connection customerId
+        getAllCourses = Repo.getAllCourses connection
+        getCourseData = Repo.getCourseData connection
+        getCurrentBlockTitle =
+          Repo.getCurrentBlockTitle connection customerId }
+
     let! text, keyboard =
-      Render.state getCourses getCourseData getCurrentBlockTitle user state
+      Render.state renderServices user state
 
     do! answerCallbackQuery config query.Id queryAnswer
 

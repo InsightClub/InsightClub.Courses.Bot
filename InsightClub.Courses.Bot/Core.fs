@@ -25,11 +25,13 @@ module Idle =
   type Command =
     | Help
     | MyCourses
+    | AllCourses
 
   type Msg =
     | Started
     | Helping
-    | NoAddedCourses
+    | NoCoursesAdded
+    | NoCourses
     | SelectCanceled
     | Exited
     | Error
@@ -100,7 +102,9 @@ type Service<'Result> = Service<unit, 'Result>
 type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result
     checkMyCourses: Service<bool, 'Result>
-    getCoursesCount: Service<Count, 'Result>
+    checkAllCourses: Service<bool, 'Result>
+    getMyCoursesCount: Service<Count, 'Result>
+    getAllCoursesCount: Service<Count, 'Result>
     checkCourseStarted: CourseId -> Service<bool, 'Result>
     getFirstBlockId: CourseId -> Service<BlockId option, 'Result>
     setCurrentBlock: CourseId -> BlockId option -> Service<'Result>
@@ -137,7 +141,21 @@ let private updateIdle services = function
 
         services.callback (ListingCourses state) None
       else
-        services.callback (Idle Idle.NoAddedCourses) None
+        services.callback (Idle Idle.NoCoursesAdded) None
+
+| Some Idle.AllCourses ->
+  services.checkAllCourses <|
+    fun any ->
+      if any then
+        let state : ListingCourses.State =
+          { Context = ListingCourses.All
+            Page = 0
+            Count = coursesPerPage
+            Msg = ListingCourses.Started }
+
+        services.callback (ListingCourses state) None
+      else
+        services.callback (Idle Idle.NoCourses) None
 
 | None ->
   services.callback (Idle Idle.Error) None
@@ -177,7 +195,15 @@ let private updateListingCourses services (innerState: ListingCourses.State)
   services.callback state effect
 
 | Some (ListingCourses.Next informMax) ->
-  services.getCoursesCount <|
+  let getCoursesCount =
+    match innerState.Context with
+    | ListingCourses.My ->
+      services.getMyCoursesCount
+
+    | ListingCourses.All ->
+      services.getAllCoursesCount
+
+  getCoursesCount <|
     fun coursesCount ->
       let state, effect =
         if (innerState.Page + 1) * innerState.Count >= coursesCount then

@@ -9,6 +9,12 @@ open System.Text.RegularExpressions
 type User = Types.User
 type Button = Types.InlineKeyboardButton
 
+type Services =
+  { getMyCourses: Page -> Count -> Async<(int * string) list>
+    getAllCourses: Page -> Count -> Async<(int * string) list>
+    getCourseData: CourseId -> Async<string * string>
+    getCurrentBlockTitle: CourseId -> Async<string> }
+
 let private c s = Regex("\n[ ]+").Replace(s, "\n")
 let private random = Random()
 let randomEmoji () =
@@ -19,7 +25,8 @@ let randomEmoji () =
   emojis.[ random.Next(emojis.Length) ]
 
 let private commands =
-  c$"{Commands.mycourses} - Показать мои курсы ⚡️
+  c$"{Commands.courses} - Показать доступные курсы 📄
+    {Commands.mycourses} - Показать мои курсы 📌
     {Commands.help} - Получить помощь 👀"
 
 let private idleMsg (user: User) = function
@@ -30,10 +37,12 @@ let private idleMsg (user: User) = function
     |> Option.defaultValue ""
 
   c$"Добро пожаловать в InsightClub.Courses.Bot, {user.FirstName} \
-    {lastName}! ✨ С помощью этого бота Вы можете проходить курсы \
+    {lastName}! ✨
+
+    С помощью этого бота Вы можете проходить курсы \
     InsightClub! 😎
 
-    Отправьте /help для получения помощи 👀"
+    Отправьте {Commands.help} для получения помощи 👀"
 
 | Idle.Helping ->
   c$"Добро пожаловать в справку InsightClub.Courses.Bot! 🤖
@@ -44,17 +53,31 @@ let private idleMsg (user: User) = function
 
     {commands}
 
-    Если Вы ещё не оплатили ни одного курса, Ваш список курсов будет пуст. \
-    Для того, чтоб приорбрести курсы, свяжитесь пожалуйста с ХХХ. Затем, \
-    после проверки оплаты, Вам будет предоставлен доступ к оплаченному курсу. \
-    Вы сможете найти его по комманде {Commands.select}.
+    Для начала Вы можете ознакомиться со списком доступных курсов по команде \
+    {Commands.courses}. Из этого меню Вы можете выбрать бесплатные курсы \
+    и добавить их в свой список. Платные курсы станут Вам доступны после \
+    оплаты и проверки факта оплаты автором курса. Каждый курс содержит \
+    информацию о его содержании, контакты автора, информацию об оплате. \
+    После добавления курса в свой список он становится доступен в меню \
+    {Commands.mycourses}.
 
-    Учитывайте, что команда {Commands.help} работает только в режиме ожидания. \
-    В остальных режимах она не распознаётся, ибо их интерфейс поможет \
-    Вам легко разобраться 🔥"
+    Учитывайте, что команда {Commands.help} работает только в режиме \
+    ожидания. В остальных режимах она не распознаётся. Их интерфейсы \
+    помогут Вам легко разобраться.
 
-| Idle.NoAddedCourses ->
-  c$"У Вас пока нет добавленных курсов {randomEmoji ()}
+    Приятного личностного роста! 🔥"
+
+| Idle.NoCoursesAdded ->
+  c$"Вы пока не добавили ни одного курса в свой список {randomEmoji ()}
+
+    Для просмотра доступных курсов, отправьте {Commands.courses}. \
+    Для получения справки отправьте {Commands.help} 🤹‍♂️"
+
+| Idle.NoCourses ->
+  c$"К сожалению, на платформе ещё нет ни одного курса {randomEmoji ()}
+
+    В скором времени, здесь будет много полезной информации. \
+    Ну а пока, просим Вас набраться терпения ❤️
 
     Для получения справки отправьте {Commands.help} 🤹‍♂️"
 
@@ -141,7 +164,7 @@ let private button text command : Button =
     SwitchInlineQuery = None
     SwitchInlineQueryCurrentChat = None }
 
-let state getCourses getCourseData getCurrentBlockTitle user state = async {
+let state services user state = async {
   match state with
   | Inactive ->
     return String.Empty, None
@@ -149,11 +172,17 @@ let state getCourses getCourseData getCurrentBlockTitle user state = async {
   | Idle msg ->
     return idleMsg user msg, None
 
-  | ListingCourses { Page = page; Count = count; Msg = msg } ->
-    let! courses = getCourses page count
+  | ListingCourses state ->
+    let! courses =
+      match state.Context with
+      | ListingCourses.My ->
+        services.getMyCourses state.Page state.Count
+
+      | ListingCourses.All ->
+        services.getAllCourses state.Page state.Count
 
     return
-      listingCoursesMsg page count (List.length courses) msg,
+      listingCoursesMsg state.Page state.Count (List.length courses) state.Msg,
       Some
         [ for (id, title) in courses do
             yield [ button title $"{Commands.select} {id}" ]
@@ -164,7 +193,7 @@ let state getCourses getCourseData getCurrentBlockTitle user state = async {
           yield [ button Button.exit Commands.exit ] ]
 
   | ViewingCourse (courseId, msg) ->
-    let! title, desc = getCourseData courseId
+    let! title, desc = services.getCourseData courseId
     let data =
       c$"{title}
 
@@ -177,7 +206,7 @@ let state getCourses getCourseData getCurrentBlockTitle user state = async {
           [ button Button.exit Commands.exit ] ]
 
   | StudyingCourse (courseId, msg) ->
-    let! title = getCurrentBlockTitle courseId
+    let! title = services.getCurrentBlockTitle courseId
     return
       studyingCourseMsg title msg,
       Some
