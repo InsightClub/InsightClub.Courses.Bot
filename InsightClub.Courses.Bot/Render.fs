@@ -15,7 +15,7 @@ type Services =
     getCourseData: CourseId -> Async<string * string>
     getCurrentBlockTitle: CourseId -> Async<string> }
 
-let private c s = Regex("\n[ ]+").Replace(s, "\n")
+let private c s = Regex("\n[ ]*").Replace(s, "\n")
 let private random = Random()
 let randomEmoji () =
   let emojis =
