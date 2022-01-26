@@ -146,7 +146,7 @@ let state getCourses getCourseData getCurrentBlockTitle user state = async {
   | Idle msg ->
     return idleMsg user msg, None
 
-  | ListingCourses (page, count, msg) ->
+  | ListingCourses { Page = page; Count = count; Msg = msg } ->
     let! courses = getCourses page count
 
     return
