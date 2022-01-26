@@ -20,7 +20,7 @@ let get connection customerId =
 
   let checkAnyCourses callback = async {
     let! any =
-      Repo.checkAnyCourses connection customerId
+      Repo.checkAnyAddedCourses connection customerId
 
     return! callback any }
 
@@ -69,7 +69,7 @@ let get connection customerId =
     return! callback contents }
 
   { callback = callback
-    checkAnyCourses = checkAnyCourses
+    checkAnyAddedCourses = checkAnyCourses
     getCoursesCount = getCoursesCount
     checkCourseStarted = checkCourseStarted
     getFirstBlockId = getFirstBlockId

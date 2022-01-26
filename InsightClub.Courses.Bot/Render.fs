@@ -53,8 +53,9 @@ let private idleMsg (user: User) = function
     В остальных режимах она не распознаётся, ибо их интерфейс поможет \
     Вам легко разобраться 🔥"
 
-| Idle.NoCourses ->
-  c$"У Вас пока нет доступных курсов {randomEmoji ()}
+| Idle.NoAddedCourses ->
+  c$"У Вас пока нет добавленных курсов {randomEmoji ()}
+
     Для получения справки отправьте {Commands.help} 🤹‍♂️"
 
 | Idle.SelectCanceled ->
@@ -69,6 +70,7 @@ let private idleMsg (user: User) = function
 
 | Idle.Error ->
   c$"Неизвестная команда {randomEmoji ()}
+
     Отправьте {Commands.help} для получения помощи 👀"
 
 let private listingCoursesMsg page count courseCount msg =
@@ -102,6 +104,7 @@ let private viewingCourseMsg data = function
 
 | ViewingCourse.Closed ->
   c$"Курс закрыт 👌
+
     Вы в любой момент можете начать его с помощью кнопки ниже.
 
     {data}"

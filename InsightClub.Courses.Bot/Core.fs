@@ -29,7 +29,7 @@ module Idle =
   type Msg =
     | Started
     | Helping
-    | NoCourses
+    | NoAddedCourses
     | SelectCanceled
     | Exited
     | Error
@@ -99,7 +99,7 @@ type Service<'Result> = Service<unit, 'Result>
 
 type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result
-    checkAnyCourses: Service<bool, 'Result>
+    checkAnyAddedCourses: Service<bool, 'Result>
     getCoursesCount: Service<Count, 'Result>
     checkCourseStarted: CourseId -> Service<bool, 'Result>
     getFirstBlockId: CourseId -> Service<BlockId option, 'Result>
@@ -114,19 +114,19 @@ let initial = Inactive
 
 let private coursesPerPage = 5
 
-let private updateInactive callback = function
+let private updateInactive services = function
 | Some Inactive.Start ->
-  callback (Idle Idle.Started) None
+  services.callback (Idle Idle.Started) None
 
 | None ->
-  callback Inactive None
+  services.callback Inactive None
 
-let private updateIdle callback checkAnyCourses = function
+let private updateIdle services = function
 | Some Idle.Help ->
-  callback (Idle Idle.Helping) None
+  services.callback (Idle Idle.Helping) None
 
 | Some Idle.Start ->
-  checkAnyCourses <|
+  services.checkAnyAddedCourses <|
     fun any ->
       if any then
         let state : ListingCourses.State =
@@ -135,25 +135,28 @@ let private updateIdle callback checkAnyCourses = function
             Count = coursesPerPage
             Msg = ListingCourses.Started }
 
-        callback (ListingCourses state) None
+        services.callback (ListingCourses state) None
       else
-        callback (Idle Idle.NoCourses) None
+        services.callback (Idle Idle.NoAddedCourses) None
 
 | None ->
-  callback (Idle Idle.Error) None
+  services.callback (Idle Idle.Error) None
 
-let private updateListingCourses
-  callback
-  getCoursesCount
-  checkCourseStarted
-  (innerState : ListingCourses.State) = function
+let private updateListingCourses services (innerState: ListingCourses.State)
+  = function
 | Some (ListingCourses.Select courseId) ->
-  checkCourseStarted courseId <|
+  services.checkCourseStarted courseId <|
     fun started ->
       if started then
-        callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
+        let newState =
+          StudyingCourse (courseId, StudyingCourse.Studying)
+
+        services.callback newState None
       else
-        callback (ViewingCourse (courseId, ViewingCourse.Started)) None
+        let newState =
+          ViewingCourse (courseId, ViewingCourse.Started)
+
+        services.callback newState None
 
 | Some (ListingCourses.Prev informMin) ->
   let state, effect =
@@ -171,10 +174,10 @@ let private updateListingCourses
 
       ListingCourses newInnerState, None
 
-  callback state effect
+  services.callback state effect
 
 | Some (ListingCourses.Next informMax) ->
-  getCoursesCount <|
+  services.getCoursesCount <|
     fun coursesCount ->
       let state, effect =
         if (innerState.Page + 1) * innerState.Count >= coursesCount then
@@ -191,106 +194,96 @@ let private updateListingCourses
 
           ListingCourses newInnerState, None
 
-      callback state effect
+      services.callback state effect
 
 | Some ListingCourses.Exit ->
-  callback (Idle Idle.SelectCanceled) None
+  services.callback (Idle Idle.SelectCanceled) None
 
 | None ->
   let newInnerState =
     { innerState with
         Msg = ListingCourses.Error }
 
-  callback (ListingCourses newInnerState) None
+  services.callback (ListingCourses newInnerState) None
 
-let private updateViewingCourse
-  callback getFirstBlockId setCurrentBlock courseId = function
+let private updateViewingCourse services courseId = function
 | Some ViewingCourse.Start ->
-  getFirstBlockId courseId <|
+  services.getFirstBlockId courseId <|
     function
     | Some blockId ->
-      setCurrentBlock courseId (Some blockId) <|
+      services.setCurrentBlock courseId (Some blockId) <|
         fun () ->
-          callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
+          services.callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
 
     | None ->
-      callback (ViewingCourse (courseId, ViewingCourse.CourseEmpty)) None
+      services.callback (ViewingCourse (courseId, ViewingCourse.CourseEmpty)) None
 
 | Some ViewingCourse.Exit ->
-  callback (Idle Idle.Exited) None
+  services.callback (Idle Idle.Exited) None
 
 | None ->
-  callback (ViewingCourse (courseId, ViewingCourse.Error)) None
+  services.callback (ViewingCourse (courseId, ViewingCourse.Error)) None
 
-let private updateStudyingCourse
-  { callback = callback
-    getCurrentBlockContent = getCurrentBlockContent
-    getPrevBlockId = getPrevBlockId
-    getNextBlockId = getNextBlockId
-    setCurrentBlock = setCurrentBlock } courseId = function
+let private updateStudyingCourse services courseId = function
 | Some (StudyingCourse.ShowInfo show) ->
-  getCurrentBlockContent courseId <|
+  services.getCurrentBlockContent courseId <|
     fun contents ->
-      callback
+      services.callback
         (StudyingCourse (courseId, StudyingCourse.Studying))
         (Some (show contents))
 
 | Some (StudyingCourse.Prev informMin) ->
-  getPrevBlockId courseId <|
+  services.getPrevBlockId courseId <|
     function
     | Some blockId ->
-      setCurrentBlock courseId (Some blockId) <|
+      services.setCurrentBlock courseId (Some blockId) <|
         fun () ->
-          callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
+          services.callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
 
     | None ->
-      callback
+      services.callback
         (StudyingCourse (courseId, StudyingCourse.Studying)) (Some informMin)
 
 | Some (StudyingCourse.Next informMax) ->
-  getNextBlockId courseId <|
+  services.getNextBlockId courseId <|
     function
     | Some blockId ->
-      setCurrentBlock courseId (Some blockId) <|
+      services.setCurrentBlock courseId (Some blockId) <|
         fun () ->
-          callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
+          services.callback (StudyingCourse (courseId, StudyingCourse.Studying)) None
 
     | None ->
-      callback
+      services.callback
         (StudyingCourse (courseId, StudyingCourse.Studying)) (Some informMax)
 
 | Some StudyingCourse.Close ->
-  setCurrentBlock courseId None <|
+  services.setCurrentBlock courseId None <|
     fun () ->
-      callback (ViewingCourse (courseId, ViewingCourse.Closed)) None
+      services.callback (ViewingCourse (courseId, ViewingCourse.Closed)) None
 
 | Some StudyingCourse.Exit ->
-  callback (Idle Idle.Exited) None
+  services.callback (Idle Idle.Exited) None
 
 | None ->
-  callback (StudyingCourse (courseId, StudyingCourse.Error)) None
+  services.callback (StudyingCourse (courseId, StudyingCourse.Error)) None
 
-let update services commands =
-  let s = services
-  function
-  | Inactive ->
-    commands.getInactive ()
-    |> updateInactive s.callback
+let update services commands = function
+| Inactive ->
+  commands.getInactive ()
+  |> updateInactive services
 
-  | Idle _ ->
-    commands.getIdle()
-    |> updateIdle s.callback s.checkAnyCourses
+| Idle _ ->
+  commands.getIdle()
+  |> updateIdle services
 
-  | ListingCourses innerState ->
-    commands.getListingCourses ()
-    |> updateListingCourses
-      s.callback s.getCoursesCount s.checkCourseStarted innerState
+| ListingCourses innerState ->
+  commands.getListingCourses ()
+  |> updateListingCourses services innerState
 
-  | ViewingCourse (courseId, _) ->
-    commands.getViewingCourse ()
-    |> updateViewingCourse
-      s.callback s.getFirstBlockId s.setCurrentBlock courseId
+| ViewingCourse (courseId, _) ->
+  commands.getViewingCourse ()
+  |> updateViewingCourse services courseId
 
-  | StudyingCourse (courseId, _) ->
-    commands.getStudyingCourse ()
-    |> updateStudyingCourse s courseId
+| StudyingCourse (courseId, _) ->
+  commands.getStudyingCourse ()
+  |> updateStudyingCourse services courseId

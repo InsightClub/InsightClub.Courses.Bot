@@ -64,7 +64,7 @@ let updateCustomer connection customerId firstName lastName username state =
   |> Async.AwaitTask
   |> Async.Ignore
 
-let checkAnyCourses connection customerId =
+let checkAnyAddedCourses connection customerId =
   connection
   |> Sql.existingConnection
   |> Sql.query
