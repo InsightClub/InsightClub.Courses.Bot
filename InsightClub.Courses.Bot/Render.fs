@@ -25,8 +25,8 @@ let randomEmoji () =
   emojis.[ random.Next(emojis.Length) ]
 
 let private commands =
-  c$"{Commands.courses} - Доступные курсы 📄
-    {Commands.mycourses} - Мои курсы ⭐️
+  c$"{Commands.mycourses} - Мои курсы ⭐️
+    {Commands.courses} - Доступные курсы 📄
     {Commands.help} - Получить помощь 👀"
 
 let private idleMsg (user: User) = function
@@ -96,9 +96,9 @@ let private idleMsg (user: User) = function
 
     Отправьте {Commands.help} для получения помощи 👀"
 
-let private listingCoursesMsg page count courseCount msg =
+let private listingCoursesMsg (innerState: ListingCourses.State) courseCount =
   let m s =
-    match msg with
+    match innerState.Msg with
     | ListingCourses.Started ->
       s
 
@@ -107,12 +107,20 @@ let private listingCoursesMsg page count courseCount msg =
 
         {s}"
 
-  let min = page * count + 1
-  let max = page * count + courseCount
+  let min = innerState.Page * innerState.Count + 1
+  let max = innerState.Page * innerState.Count + courseCount
+
+  let context =
+    match innerState.Context with
+    | ListingCourses.My ->
+      "Мои курсы ⭐️"
+
+    | ListingCourses.All ->
+      "Доступные курсы 📄"
 
   if min = max
-  then $"Курс № {min}"
-  else $"Курсы с № {min} по № {max}"
+  then $"{context}\n\n(№ {min})"
+  else $"{context}\n\n(№ {min} - № {max})"
   |> m
   |> c
 
@@ -172,17 +180,17 @@ let state services user state = async {
   | Idle msg ->
     return idleMsg user msg, None
 
-  | ListingCourses state ->
+  | ListingCourses innerState ->
     let! courses =
-      match state.Context with
+      match innerState.Context with
       | ListingCourses.My ->
-        services.getMyCourses state.Page state.Count
+        services.getMyCourses innerState.Page innerState.Count
 
       | ListingCourses.All ->
-        services.getAllCourses state.Page state.Count
+        services.getAllCourses innerState.Page innerState.Count
 
     return
-      listingCoursesMsg state.Page state.Count (List.length courses) state.Msg,
+      listingCoursesMsg innerState (List.length courses),
       Some
         [ for (id, title) in courses do
             yield [ button title $"{Commands.select} {id}" ]
