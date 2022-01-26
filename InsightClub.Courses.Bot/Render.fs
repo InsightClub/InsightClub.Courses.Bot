@@ -202,6 +202,12 @@ let state services user state = async {
 
   | ViewingCourse (courseId, msg) ->
     let! title, desc = services.getCourseData courseId
+
+    let desc =
+      if desc <> String.Empty
+      then desc
+      else "{Без описания}"
+
     let data =
       c$"{title}
 

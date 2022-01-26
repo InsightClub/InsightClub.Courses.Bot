@@ -163,18 +163,10 @@ let private updateIdle services = function
 let private updateListingCourses services (innerState: ListingCourses.State)
   = function
 | Some (ListingCourses.Select courseId) ->
-  services.checkCourseStarted courseId <|
-    fun started ->
-      if started then
-        let newState =
-          StudyingCourse (courseId, StudyingCourse.Studying)
+  let newState =
+    ViewingCourse (courseId, ViewingCourse.Started)
 
-        services.callback newState None
-      else
-        let newState =
-          ViewingCourse (courseId, ViewingCourse.Started)
-
-        services.callback newState None
+  services.callback newState None
 
 | Some (ListingCourses.Prev informMin) ->
   let state, effect =
