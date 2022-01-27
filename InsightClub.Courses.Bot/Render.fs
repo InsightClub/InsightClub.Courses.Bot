@@ -161,6 +161,8 @@ module private Button =
   let start = "Начать ⚡️"
   let close = "Закрыть 🔓"
   let show = "Читать 👁‍🗨"
+  let add = "Добавить в свои ⭐️"
+  let continue' = "Продолжить 💫"
 
 let private button text command : Button =
   { Text = text
@@ -200,8 +202,8 @@ let state services user state = async {
 
           yield [ button Button.exit Commands.exit ] ]
 
-  | ViewingCourse (courseId, msg) ->
-    let! title, desc = services.getCourseData courseId
+  | ViewingCourse innerState ->
+    let! title, desc = services.getCourseData innerState.CourseId
 
     let desc =
       if desc <> String.Empty
@@ -214,9 +216,21 @@ let state services user state = async {
       {desc}"
 
     return
-      viewingCourseMsg data msg,
+      viewingCourseMsg data innerState.Msg,
       Some
-        [ [ button Button.start Commands.start ]
+        [ [ match innerState.Context with
+            | ViewingCourse.NotAvailable ->
+              ()
+
+            | ViewingCourse.Available ->
+              yield button Button.add Commands.add
+
+            | ViewingCourse.Added ->
+              yield button Button.start Commands.start
+
+            | ViewingCourse.Launched ->
+              yield button Button.continue' Commands.continue' ]
+
           [ button Button.exit Commands.exit ] ]
 
   | StudyingCourse (courseId, msg) ->

@@ -23,6 +23,8 @@ let show = "/show"
 let close = "/close"
 let mycourses = "/mycourses"
 let courses = "/courses"
+let add = "/add"
+let continue' = "/continue"
 
 let private (|Command|_|) command = function
 | { Message.Text = Some text }
@@ -110,9 +112,11 @@ let onQuery query =
 
   let getViewingCourse () =
     match query with
-    | CommandQ start -> Some ViewingCourse.Start
-    | CommandQ exit  -> Some ViewingCourse.Exit
-    | _              -> None
+    | CommandQ start     -> Some ViewingCourse.Start
+    | CommandQ add       -> Some ViewingCourse.Add
+    | CommandQ continue' -> Some ViewingCourse.Continue
+    | CommandQ exit      -> Some ViewingCourse.Exit
+    | _                  -> None
 
   let getStudyingCourse () =
     match query with

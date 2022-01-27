@@ -3,6 +3,20 @@ module InsightClub.Courses.Bot.Repo
 open Npgsql.FSharp
 
 
+module Queries =
+  let checkCourseAvailable =
+    "(SELECT telegram_id
+    FROM customers
+    WHERE customer_id = @customer_id)
+    =
+    (SELECT telegram_id
+    FROM creators
+    WHERE creator_id = (
+      SELECT creator_id
+      FROM courses
+      WHERE course_id = @course_id
+    ))"
+
 let getOrCreateCustomer
   connection telegramId firstName lastName username initialState =
   connection
@@ -152,7 +166,7 @@ let getAllCourses connection page count =
         read.string "course_title" )
   |> Async.AwaitTask
 
-let checkCourseStarted connection customerId courseId =
+let checkCourseLaunched connection customerId courseId =
   connection
   |> Sql.existingConnection
   |> Sql.query
@@ -274,7 +288,7 @@ let getCurrentBlockTitle connection customerId courseId =
   connection
   |> Sql.existingConnection
   |> Sql.query
-    $"SELECT COALESCE((
+    "SELECT COALESCE((
       SELECT block_title
       FROM blocks
       WHERE block_id = (
@@ -290,3 +304,47 @@ let getCurrentBlockTitle connection customerId courseId =
       "course_id", Sql.int courseId ]
   |> Sql.executeRowAsync (fun read -> read.string "block_title")
   |> Async.AwaitTask
+
+let checkCourseAvailable connection customerId courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    $"SELECT ({Queries.checkCourseAvailable}) as available"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.bool "available")
+  |> Async.AwaitTask
+
+let checkCourseAddedToMy connection customerId courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT EXISTS(
+      SELECT 1
+      FROM customer_courses
+      WHERE customer_id = @customer_id
+      AND course_id = @course_id
+    ) as added"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.bool "added")
+  |> Async.AwaitTask
+
+let addCourseToMy connection customerId courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    $"INSERT INTO customer_courses (
+      customer_id,
+      course_id
+    )
+    SELECT @customer_id, @course_id
+    WHERE ({Queries.checkCourseAvailable})"
+  |> Sql.parameters
+    [ "customer_id", Sql.int customerId
+      "course_id", Sql.int courseId ]
+  |> Sql.executeNonQueryAsync
+  |> Async.AwaitTask
+  |> Async.Ignore

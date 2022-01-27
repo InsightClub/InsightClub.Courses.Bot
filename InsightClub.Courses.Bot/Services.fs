@@ -42,12 +42,6 @@ let get connection customerId =
 
     return! callback count }
 
-  let checkCourseStarted courseId callback = async {
-    let! started =
-      Repo.checkCourseStarted connection customerId courseId
-
-    return! callback started }
-
   let getFirstBlockId courseId callback = async {
     let! started =
       Repo.getFirstBlockId connection courseId
@@ -76,18 +70,46 @@ let get connection customerId =
     let! contents =
       Repo.getCurrentBlockContent connection customerId courseId
 
-    let contents = contents |> List.map mapContent
+    let contents =
+      contents |> List.map mapContent
 
     return! callback contents }
+
+  let getCourseAvailability courseId callback = async {
+    let! available =
+      Repo.checkCourseAvailable connection customerId courseId
+
+    if not available
+    then return! callback ViewingCourse.NotAvailable
+    else
+      let! added =
+        Repo.checkCourseAddedToMy connection customerId courseId
+
+      if not added
+      then return! callback ViewingCourse.Available
+      else
+        let! launched =
+          Repo.checkCourseLaunched connection customerId courseId
+
+        if not launched
+        then return! callback ViewingCourse.Added
+        else return! callback ViewingCourse.Launched }
+
+  let addCourseToMy courseId callback = async {
+    do!
+      Repo.addCourseToMy connection customerId courseId
+
+    return! callback () }
 
   { callback = callback
     checkMyCourses = checkMyCourses
     checkAllCourses = checkAllCourses
     getMyCoursesCount = getMyCoursesCount
     getAllCoursesCount = getAllCoursesCount
-    checkCourseStarted = checkCourseStarted
     getFirstBlockId = getFirstBlockId
     setCurrentBlock = setCurrentBlock
     getPrevBlockId = getPrevBlockId
     getNextBlockId = getNextBlockId
-    getCurrentBlockContent = getCurrentBlockContent }
+    getCurrentBlockContent = getCurrentBlockContent
+    getCourseAvailability = getCourseAvailability
+    addCourseToMy = addCourseToMy }

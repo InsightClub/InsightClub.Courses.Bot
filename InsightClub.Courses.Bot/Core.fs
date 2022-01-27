@@ -60,6 +60,8 @@ module ListingCourses =
 module ViewingCourse =
   type Command =
     | Start
+    | Continue
+    | Add
     | Exit
 
   type Msg =
@@ -67,6 +69,17 @@ module ViewingCourse =
     | CourseEmpty
     | Closed
     | Error
+
+  type Context =
+    | NotAvailable
+    | Available
+    | Added
+    | Launched
+
+  type State =
+    { CourseId: CourseId
+      Context: Context
+      Msg: Msg }
 
 module StudyingCourse =
   type Command<'Effect> =
@@ -84,7 +97,7 @@ type BotState =
   | Inactive
   | Idle of Idle.Msg
   | ListingCourses of ListingCourses.State
-  | ViewingCourse of CourseId * ViewingCourse.Msg
+  | ViewingCourse of ViewingCourse.State
   | StudyingCourse of CourseId * StudyingCourse.Msg
 
 type GetCommand<'Command> = unit -> 'Command option
@@ -105,12 +118,14 @@ type BotServices<'Effect, 'Result> =
     checkAllCourses: Service<bool, 'Result>
     getMyCoursesCount: Service<Count, 'Result>
     getAllCoursesCount: Service<Count, 'Result>
-    checkCourseStarted: CourseId -> Service<bool, 'Result>
     getFirstBlockId: CourseId -> Service<BlockId option, 'Result>
     setCurrentBlock: CourseId -> BlockId option -> Service<'Result>
     getPrevBlockId: CourseId -> Service<BlockId option, 'Result>
     getNextBlockId: CourseId -> Service<BlockId option, 'Result>
-    getCurrentBlockContent: CourseId -> Service<Content list, 'Result> }
+    getCurrentBlockContent: CourseId -> Service<Content list, 'Result>
+    getCourseAvailability: CourseId ->
+      Service<ViewingCourse.Context, 'Result>
+    addCourseToMy: CourseId -> Service<'Result> }
 
 // Values
 /// Initial state
@@ -163,10 +178,14 @@ let private updateIdle services = function
 let private updateListingCourses services (innerState: ListingCourses.State)
   = function
 | Some (ListingCourses.Select courseId) ->
-  let newState =
-    ViewingCourse (courseId, ViewingCourse.Started)
+  services.getCourseAvailability courseId <|
+    fun ctx ->
+      let innerState : ViewingCourse.State =
+        { CourseId = courseId
+          Context = ctx
+          Msg = ViewingCourse.Started }
 
-  services.callback newState None
+      services.callback (ViewingCourse innerState) None
 
 | Some (ListingCourses.Prev informMin) ->
   let state, effect =
@@ -227,32 +246,50 @@ let private updateListingCourses services (innerState: ListingCourses.State)
 
   services.callback (ListingCourses newInnerState) None
 
-let private updateViewingCourse services courseId = function
+let private updateViewingCourse services (innerState: ViewingCourse.State)
+  = function
 | Some ViewingCourse.Start ->
-  services.getFirstBlockId courseId <|
+  services.getFirstBlockId innerState.CourseId <|
     function
     | Some blockId ->
-      services.setCurrentBlock courseId (Some blockId) <|
+      services.setCurrentBlock innerState.CourseId (Some blockId) <|
         fun () ->
           let newState =
-            StudyingCourse (courseId, StudyingCourse.Studying)
+            StudyingCourse (innerState.CourseId, StudyingCourse.Studying)
 
           services.callback newState None
 
     | None ->
-      let newState =
-        ViewingCourse (courseId, ViewingCourse.CourseEmpty)
+      let newInnerState =
+        { innerState with
+            Msg = ViewingCourse.CourseEmpty }
 
-      services.callback newState None
+      services.callback (ViewingCourse newInnerState) None
+
+| Some ViewingCourse.Continue ->
+  let newState =
+    StudyingCourse (innerState.CourseId, StudyingCourse.Studying)
+
+  services.callback newState None
+
+| Some ViewingCourse.Add ->
+  services.addCourseToMy innerState.CourseId <|
+    fun () ->
+      let newInnerState =
+        { innerState with
+            Context = ViewingCourse.Added }
+
+      services.callback (ViewingCourse newInnerState) None
 
 | Some ViewingCourse.Exit ->
   services.callback (Idle Idle.Exited) None
 
 | None ->
-  let newState =
-    ViewingCourse (courseId, ViewingCourse.Error)
+  let newInnerState =
+    { innerState with
+        Msg = ViewingCourse.Error }
 
-  services.callback newState None
+  services.callback (ViewingCourse newInnerState) None
 
 let private updateStudyingCourse services courseId = function
 | Some (StudyingCourse.ShowInfo show) ->
@@ -299,10 +336,12 @@ let private updateStudyingCourse services courseId = function
 | Some StudyingCourse.Close ->
   services.setCurrentBlock courseId None <|
     fun () ->
-      let newState =
-        ViewingCourse (courseId, ViewingCourse.Closed)
+      let innerState : ViewingCourse.State =
+        { CourseId = courseId
+          Context = ViewingCourse.Added
+          Msg = ViewingCourse.Started }
 
-      services.callback newState None
+      services.callback (ViewingCourse innerState) None
 
 | Some StudyingCourse.Exit ->
   services.callback (Idle Idle.Exited) None
@@ -326,9 +365,9 @@ let update services commands = function
   commands.getListingCourses ()
   |> updateListingCourses services innerState
 
-| ViewingCourse (courseId, _) ->
+| ViewingCourse innerState ->
   commands.getViewingCourse ()
-  |> updateViewingCourse services courseId
+  |> updateViewingCourse services innerState
 
 | StudyingCourse (courseId, _) ->
   commands.getStudyingCourse ()
