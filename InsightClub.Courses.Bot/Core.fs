@@ -24,8 +24,8 @@ module Inactive =
 module Idle =
   type Command =
     | Help
-    | MyCourses
-    | AllCourses
+    | ListMy
+    | ListAll
 
   type Msg =
     | Started
@@ -144,7 +144,7 @@ let private updateIdle services = function
 | Some Idle.Help ->
   services.callback (Idle Idle.Helping) None
 
-| Some Idle.MyCourses ->
+| Some Idle.ListMy ->
   services.checkMyCourses <|
     fun any ->
       if any then
@@ -158,7 +158,7 @@ let private updateIdle services = function
       else
         services.callback (Idle Idle.NoCoursesAdded) None
 
-| Some Idle.AllCourses ->
+| Some Idle.ListAll ->
   services.checkAllCourses <|
     fun any ->
       if any then
